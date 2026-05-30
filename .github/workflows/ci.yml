@@ -1,0 +1,46 @@
+name: CI
+
+# Definition of Done(AGENTS.md §4)을 자동 실행하는 검증 파이프라인.
+# 워커(코드 변경)와 체커(이 CI)를 분리해, "통과 주장"이 아닌 "실제 통과"를 강제한다.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: 백엔드 (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run check   # tsc --noEmit + nest build
+
+  flutter:
+    name: Flutter (analyze + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pretty_four
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.1'
+          channel: stable
+          cache: true
+      - run: |
+          printf 'API_BASE_URL=http://localhost:3000\nKAKAO_NATIVE_APP_KEY=ci\nGOOGLE_CLIENT_ID=ci\n' > .env
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

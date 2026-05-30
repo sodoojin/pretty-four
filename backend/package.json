@@ -4,7 +4,12 @@
   "scripts": {
     "build": "nest build",
     "start": "node dist/main",
-    "start:dev": "nest start --watch"
+    "start:dev": "nest start --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "npm run typecheck && npm run build"
+  },
+  "engines": {
+    "node": ">=20 <21"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

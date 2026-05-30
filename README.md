@@ -1,0 +1,46 @@
+# 이쁜네살 (Pretty Four)
+
+부모와 아이의 대화를 녹음·분석해 **연령별 훈육 코칭**을 제공하는 모바일 앱.
+
+- **앱:** Flutter (iOS/Android) — `pretty_four/`
+- **백엔드:** NestJS + MariaDB (Docker) — `backend/`
+- **AI:** OpenAI Whisper(STT) + Anthropic Claude(코칭 분석)
+
+> 🤖 AI 에이전트로 작업한다면 먼저 **[AGENTS.md](./AGENTS.md)**를 읽으세요 (진입 문서·완료 기준·컨벤션).
+
+## 빠른 시작
+
+```bash
+# 0) 사전 준비: Docker, Node 20, Flutter 3.9+
+cp backend/.env.example backend/.env   # OPENAI_API_KEY, ANTHROPIC_API_KEY 채우기
+
+# 1) 한 번에 셋업 (백엔드+DB 기동, Flutter 의존성 설치)
+./init.sh
+
+# 2) 앱 실행 (시뮬레이터/기기)
+cd pretty_four && flutter run
+```
+
+백엔드는 `http://localhost:3000`. 앱의 `pretty_four/.env`에 `API_BASE_URL=http://localhost:3000`.
+
+## 검증 (Definition of Done)
+
+```bash
+cd pretty_four && flutter analyze && flutter test   # 정적분석 + 13 테스트
+cd backend && npm run typecheck && npm run build     # 타입체크 + 빌드
+```
+
+자세한 기준은 [AGENTS.md §4](./AGENTS.md), 기능별 검증은 [feature_list.json](./feature_list.json).
+
+## 문서
+
+| 문서 | 내용 |
+|------|------|
+| [AGENTS.md](./AGENTS.md) | 에이전트 진입 문서 (완료 기준·컨벤션·구조) |
+| [docs/HLD.md](./docs/HLD.md) | 고수준 설계 (아키텍처·데이터 흐름) |
+| [docs/LLD.md](./docs/LLD.md) | 상세 설계 (API·스키마·화면) |
+| [docs/design/preview.html](./docs/design/preview.html) | UI 디자인 시안 |
+
+## 라이선스
+
+비공개 프로젝트.

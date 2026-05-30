@@ -1,0 +1,75 @@
+{
+  "project": "이쁜네살 (Pretty Four)",
+  "updated": "2026-05-30",
+  "notes": "status 값: pass | wip | todo. 'pass'는 verification 명령을 실제 실행해 통과를 확인한 경우에만 표기한다. AI 분석(E2E) 항목은 OPENAI_API_KEY/ANTHROPIC_API_KEY와 실음성이 필요해 자동 단위검증이 아닌 수동 검증임을 명시한다.",
+  "definition_of_done": [
+    "cd pretty_four && flutter analyze  → No issues found!",
+    "cd pretty_four && flutter test     → All tests passed!",
+    "cd backend && npm run check        → exit 0 (typecheck + build)"
+  ],
+  "features": [
+    {
+      "id": "auth-email",
+      "title": "이메일 회원가입/로그인 (JWT)",
+      "status": "pass",
+      "evidence": "백엔드 curl: POST /auth/register→201, /auth/login→200, 잘못된 자격→401, 중복→409. 검증: cd backend && npm run check",
+      "verification": "cd backend && npm run check"
+    },
+    {
+      "id": "auth-social",
+      "title": "구글/카카오 소셜 로그인",
+      "status": "wip",
+      "evidence": "코드 경로 구현 완료(google-auth-library, kapi.kakao.com 검증). 실제 OAuth 토큰 E2E는 GOOGLE_CLIENT_ID/카카오 앱키 설정 후 기기 수동 검증 필요.",
+      "verification": "수동: 실기기에서 카카오/구글 로그인 → /home 진입"
+    },
+    {
+      "id": "child-profile",
+      "title": "아이 프로필 생성/조회",
+      "status": "pass",
+      "evidence": "백엔드 curl: POST /children→201(camelCase 응답), GET /children/current→200. Flutter 모델 키 매핑 일치(테스트 포함).",
+      "verification": "cd pretty_four && flutter test && cd ../backend && npm run check"
+    },
+    {
+      "id": "recording",
+      "title": "오디오 녹음 (파형·일시정지·10분 제한)",
+      "status": "pass",
+      "evidence": "record 패키지, AudioRecorder, amplitudeStream. flutter analyze 통과.",
+      "verification": "cd pretty_four && flutter analyze"
+    },
+    {
+      "id": "file-pick-analysis",
+      "title": "저장된 음성 파일 선택 후 분석",
+      "status": "pass",
+      "evidence": "file_picker(FileType.custom) 선택 → /processing 진입. 업로드 시 실제 확장자 반영. flutter analyze 통과.",
+      "verification": "cd pretty_four && flutter analyze"
+    },
+    {
+      "id": "ai-pipeline",
+      "title": "Whisper 전사 + Claude 코칭 분석",
+      "status": "pass",
+      "evidence": "샘플 음성(25초) 업로드 E2E 확인: 세션 completed, summary+feedbacks(4건) 생성, 연령별 코칭 반영. 단 OPENAI/ANTHROPIC 키 + 실음성 필요(자동 단위검증 아님).",
+      "verification": "수동: 녹음/파일선택 → 결과 화면에 요약+타임스탬프 피드백 표시. (키 설정 필요)"
+    },
+    {
+      "id": "result-history",
+      "title": "결과 조회 + 히스토리",
+      "status": "pass",
+      "evidence": "GET /sessions, /sessions/:id/result. 결과 화면 요약카드+피드백, 히스토리 월별 그룹. flutter test 모델 파싱 검증.",
+      "verification": "cd pretty_four && flutter test"
+    },
+    {
+      "id": "design-system",
+      "title": "소프트 파스텔 디자인 시스템 적용",
+      "status": "pass",
+      "evidence": "core/theme.dart + widgets/app_widgets.dart, 7개 화면 적용. flutter analyze 통과.",
+      "verification": "cd pretty_four && flutter analyze"
+    },
+    {
+      "id": "audio-privacy",
+      "title": "분석 후 오디오 즉시 삭제",
+      "status": "pass",
+      "evidence": "analysis.service runAnalysis finally: fs.unlinkSync + audioPath=null. 더미 업로드 후 /app/uploads 파일 0개 확인.",
+      "verification": "수동: 업로드 후 docker compose exec backend ls /app/uploads → 비어있음"
+    }
+  ]
+}
