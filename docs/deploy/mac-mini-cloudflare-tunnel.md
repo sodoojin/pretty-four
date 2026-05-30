@@ -74,21 +74,14 @@ openssl rand -base64 48
 
 ---
 
-## 3. 운영용 보안 설정 (DB 포트 비공개)
+## 3. DB 포트 노출 범위 (기본 안전)
 
-개발용 `docker-compose.yml`은 MariaDB를 호스트 `3306`으로 노출합니다. **운영에선 DB를 외부/호스트에 노출하지 마세요.** 백엔드는 컨테이너 내부망(`db:3306`)으로만 접근하면 됩니다.
+`docker-compose.yml`의 MariaDB는 `127.0.0.1:3306` (loopback)에만 바인딩됩니다. 호스트 외부 IP에는 노출되지 않으므로 **운영에서 별도 수정이 필요하지 않습니다.**
 
-`docker-compose.yml`의 `db` 서비스에서 `ports` 블록을 **삭제 또는 주석 처리**:
-
-```yaml
-  db:
-    image: mariadb:11
-    # ports:                 # ← 운영에서는 제거 (DB를 호스트에 노출하지 않음)
-    #   - "3306:3306"
-    ...
-```
-
-> 백엔드(`backend`)의 `3000` 포트는 cloudflared가 `localhost:3000`으로 접근하므로 유지합니다.
+- 맥미니 자체에서만 DB GUI 툴(TablePlus 등)로 `localhost:3306` 접근 가능
+- 외부망/LAN에서는 DB 포트로 직접 접근 불가
+- 백엔드는 컨테이너 내부망(`db:3306`)으로 접근하므로 영향 없음
+- cloudflared는 `localhost:3000` (백엔드)만 외부에 공개
 
 ---
 
@@ -200,7 +193,7 @@ API_BASE_URL=https://api.ippeunne4.com
 
 - [ ] `docker compose ps` — backend/db **Up**
 - [ ] `curl https://api.도메인/auth/login` → 400/401 (외부에서 접속됨)
-- [ ] DB 포트(3306) 외부 비노출 확인 (3단계)
+- [ ] DB 포트(3306)는 `127.0.0.1`에만 바인딩 — 호스트 외부 IP에는 노출 X (3단계)
 - [ ] `backend/.env` 비밀키 설정 + git 미포함(`.gitignore`)
 - [ ] 맥미니 절전 해제 + 정전 자동 부팅
 - [ ] cloudflared 서비스 등록(재부팅 자동 시작)
