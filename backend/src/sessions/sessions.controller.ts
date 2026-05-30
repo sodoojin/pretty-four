@@ -29,7 +29,10 @@ export class SessionsController {
   @UseInterceptors(FileInterceptor('audio', {
     storage: diskStorage({
       destination: process.env.UPLOAD_DIR ?? '/app/uploads',
-      filename: (_, __, cb) => cb(null, `${uuidv4()}.m4a`),
+      filename: (_, file, cb) => {
+        const ext = path.extname(file.originalname || '').toLowerCase() || '.m4a';
+        cb(null, `${uuidv4()}${ext}`);
+      },
     }),
     limits: { fileSize: 30 * 1024 * 1024 },
   }))

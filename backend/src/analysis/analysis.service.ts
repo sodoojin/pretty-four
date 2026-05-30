@@ -70,7 +70,8 @@ export class AnalysisService {
 
   private async transcribe(audioPath: string): Promise<string> {
     const form = new FormData();
-    form.append('file', fs.createReadStream(audioPath), { filename: 'audio.m4a', contentType: 'audio/m4a' });
+    const ext = (audioPath.split('.').pop() || 'm4a').toLowerCase();
+    form.append('file', fs.createReadStream(audioPath), { filename: `audio.${ext}` });
     form.append('model', 'whisper-1');
     form.append('response_format', 'verbose_json');
     form.append('timestamp_granularities[]', 'segment');
