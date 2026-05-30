@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이쁜네살 · 로고 (손글씨 크레용 · 색 조정)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+  :root{--mint:#5FE3C4;--blue:#6B9DFC;--ink:#1F2A37;--sub:#7A8694;--bg:#EEF2F8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Gowun Dodum',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:40px 20px 80px}
+  .head{max-width:900px;margin:0 auto 30px;text-align:center}
+  .head .badge{display:inline-block;background:linear-gradient(135deg,var(--mint),var(--blue));color:#fff;font-weight:700;font-size:12px;padding:6px 14px;border-radius:999px;margin-bottom:12px}
+  .head h1{font-size:24px;font-weight:800}
+  .head p{color:var(--sub);margin-top:8px;font-size:14px}
+  .grid{max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  .card{background:#fff;border-radius:20px;padding:10px;box-shadow:0 8px 24px -14px rgba(31,42,55,.25)}
+  .card.feature{grid-column:1 / -1}
+  .num{font-size:12px;font-weight:800;color:var(--blue);padding:8px 12px 0}
+  .desc{font-size:12px;color:var(--sub);padding:4px 12px 12px}
+  .stage{display:flex;align-items:center;justify-content:center;height:150px;border-radius:14px;background:#FFF7F9}
+  .stage.big{height:200px}
+  .stage.grad{background:linear-gradient(135deg,#EAFBF6,#EEF3FF)}
+  svg{max-width:100%;height:auto}
+</style>
+</head>
+<body>
+<div class="head">
+  <div class="badge">LOGO · 손글씨 크레용 (색 조정안)</div>
+  <h1>글씨 = 하트 핑크 · 하트 = 민트→블루 그라데이션</h1>
+  <p>요청하신 반전 적용. 핑크 톤 3가지 + 큰 미리보기. 마음에 드는 핑크 번호를 알려주세요.</p>
+</div>
+
+<div class="grid">
+
+  <!-- FEATURE: 요청안 (핑크 #FF8FA3) 큰 미리보기 -->
+  <div class="card feature">
+    <div class="num">★ 요청안 — 핑크 #FF8FA3</div>
+    <div class="stage big">
+      <svg viewBox="0 0 380 130" role="img" aria-label="이쁜네살">
+        <defs><linearGradient id="gh" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5FE3C4"/><stop offset="1" stop-color="#6B9DFC"/>
+        </linearGradient></defs>
+        <text x="190" y="88" text-anchor="middle" font-family="'Gaegu'" font-weight="700" font-size="68" fill="#FF8FA3">이쁜네살</text>
+        <path d="M262 30 c-4.5-7-16-4.5-16 3.5 0 7 10.5 12.5 16 16 5.5-3.5 16-9 16-16 0-8-11.5-10.5-16-3.5Z" fill="url(#gh)"/>
+      </svg>
+    </div>
+    <div class="desc">글씨를 기존 하트 핑크(#FF8FA3)로, 하트는 민트→블루 그라데이션으로 반전.</div>
+  </div>
+
+  <!-- A: soft 핑크 #FFA6B6 -->
+  <div class="card">
+    <div class="num">A · 소프트 핑크 #FFA6B6</div>
+    <div class="stage">
+      <svg viewBox="0 0 360 120" role="img" aria-label="이쁜네살">
+        <defs><linearGradient id="ga" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5FE3C4"/><stop offset="1" stop-color="#6B9DFC"/>
+        </linearGradient></defs>
+        <text x="180" y="80" text-anchor="middle" font-family="'Gaegu'" font-weight="700" font-size="58" fill="#FFA6B6">이쁜네살</text>
+        <path d="M250 28 c-4-6-14-4-14 3 0 6 9 11 14 14 5-3 14-8 14-14 0-7-10-9-14-3Z" fill="url(#ga)"/>
+      </svg>
+    </div>
+    <div class="desc">더 부드럽고 파스텔. 차분한 느낌.</div>
+  </div>
+
+  <!-- B: 비비드 코랄핑크 #FF7596 -->
+  <div class="card">
+    <div class="num">B · 비비드 코랄 #FF7596</div>
+    <div class="stage">
+      <svg viewBox="0 0 360 120" role="img" aria-label="이쁜네살">
+        <defs><linearGradient id="gb" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5FE3C4"/><stop offset="1" stop-color="#6B9DFC"/>
+        </linearGradient></defs>
+        <text x="180" y="80" text-anchor="middle" font-family="'Gaegu'" font-weight="700" font-size="58" fill="#FF7596">이쁜네살</text>
+        <path d="M250 28 c-4-6-14-4-14 3 0 6 9 11 14 14 5-3 14-8 14-14 0-7-10-9-14-3Z" fill="url(#gb)"/>
+      </svg>
+    </div>
+    <div class="desc">더 선명하고 또렷. 생기있고 눈에 띔.</div>
+  </div>
+
+  <!-- C: 파스텔 배경 위 요청안 -->
+  <div class="card">
+    <div class="num">C · 파스텔 배경 위 (#FF8FA3)</div>
+    <div class="stage grad">
+      <svg viewBox="0 0 360 120" role="img" aria-label="이쁜네살">
+        <defs><linearGradient id="gc" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#3ED0C0"/><stop offset="1" stop-color="#4F7EF0"/>
+        </linearGradient></defs>
+        <text x="180" y="80" text-anchor="middle" font-family="'Gaegu'" font-weight="700" font-size="58" fill="#FF8FA3">이쁜네살</text>
+        <path d="M250 28 c-4-6-14-4-14 3 0 6 9 11 14 14 5-3 14-8 14-14 0-7-10-9-14-3Z" fill="url(#gc)"/>
+      </svg>
+    </div>
+    <div class="desc">앱의 연한 파스텔 배경 위에서의 모습(인트로/로그인 톤).</div>
+  </div>
+
+  <!-- D: 하트 위치 변형 (네 위) -->
+  <div class="card">
+    <div class="num">D · 하트를 '네' 위로 (변형)</div>
+    <div class="stage">
+      <svg viewBox="0 0 360 120" role="img" aria-label="이쁜네살">
+        <defs><linearGradient id="gd" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5FE3C4"/><stop offset="1" stop-color="#6B9DFC"/>
+        </linearGradient></defs>
+        <text x="180" y="82" text-anchor="middle" font-family="'Gaegu'" font-weight="700" font-size="58" fill="#FF8FA3">이쁜네살</text>
+        <path d="M196 24 c-3.5-5.5-12.5-3.5-12.5 2.6 0 5.3 8 9.7 12.5 12.4 4.5-2.7 12.5-7.1 12.5-12.4 0-6.1-9-8.1-12.5-2.6Z" fill="url(#gd)"/>
+      </svg>
+    </div>
+    <div class="desc">하트를 가운데('네' 위)로 옮긴 변형. 균형감이 다름.</div>
+  </div>
+
+</div>
+</body>
+</html>
