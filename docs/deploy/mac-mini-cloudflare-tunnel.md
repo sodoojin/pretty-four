@@ -47,6 +47,10 @@ cd pretty-four
 
 # 백엔드 비밀키 설정
 cp backend/.env.example backend/.env
+
+# Docker Compose도 같은 .env를 참조하도록 프로젝트 루트에 심볼릭 링크
+# (없으면 compose가 DB 비밀번호를 기본 fallback 값으로 읽어 접속 실패함)
+ln -sf backend/.env .env
 ```
 
 `backend/.env`를 편집해 **운영값**으로 채웁니다:
