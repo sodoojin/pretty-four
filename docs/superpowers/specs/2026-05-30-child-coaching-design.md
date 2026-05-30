@@ -19,15 +19,18 @@
 
 ---
 
+> **업데이트 노트 (2026-05-30):** 초기 설계는 Supabase(Auth/Storage/Edge Functions/PostgreSQL) 기반이었으나, 구현 단계에서 **자체 NestJS + MariaDB 백엔드(Docker Compose)**로 전환했다. 추후 개인 서버 이전 시 유연성과 데이터 소유권 확보가 목적이다. 아래 내용은 실제 구현 기준으로 갱신했다. 구현 상세는 [HLD.md](../../HLD.md), [LLD.md](../../LLD.md) 참고.
+
 ## 2. 기술 스택
 
 | 레이어 | 기술 |
 |--------|------|
 | 앱 | Flutter (Dart) |
-| 인증 | Supabase Auth (카카오, 구글, 이메일; 네이버는 MVP 이후) |
-| 스토리지 | Supabase Storage (오디오 임시 보관) |
-| 서버리스 | Supabase Edge Functions (AI 파이프라인) |
-| DB | Supabase PostgreSQL |
+| 백엔드 | NestJS 10 (REST API) |
+| 인증 | 자체 JWT 인증 (이메일/구글/카카오; 네이버는 MVP 이후) |
+| 스토리지 | 서버 로컬 디스크 (오디오 임시 보관, Docker 볼륨) |
+| DB | MariaDB 11 (TypeORM) |
+| 배포 | Docker Compose (backend + db) |
 | STT | OpenAI Whisper API |
 | 분석/코칭 | Anthropic Claude API |
 
@@ -37,25 +40,26 @@
 
 ```
 [Flutter 앱]
-      │ HTTPS
+      │ HTTPS (REST + JWT)
       ▼
-[Supabase]
-  ├── Auth (소셜 로그인)
-  ├── Storage (오디오 임시 업로드)
-  ├── Edge Function (AI 파이프라인 실행)
-  └── PostgreSQL (결과 저장)
+[NestJS 백엔드]  (Docker)
+  ├── Auth 모듈 (이메일/구글/카카오 → JWT 발급)
+  ├── Children / Sessions 모듈 (프로필·세션 관리)
+  ├── Analysis 모듈 (AI 파이프라인 실행)
+  ├── 로컬 디스크 (오디오 임시 업로드)
+  └── MariaDB (TypeORM, 결과 저장)
       │
       ├── OpenAI Whisper API (음성 → 텍스트)
       └── Claude API (텍스트 → 코칭 분석)
 ```
 
 **처리 흐름:**
-1. 앱에서 오디오 녹음 후 Supabase Storage에 업로드
-2. Edge Function이 트리거되어 Whisper API 호출 (STT)
-3. 전사 텍스트 + 아이 나이 → Claude API 호출 (분석)
-4. 분석 결과를 PostgreSQL에 저장
-5. Storage에서 오디오 파일 즉시 삭제
-6. 앱에 결과 반환
+1. 앱에서 오디오 녹음 후 `POST /sessions/upload`로 백엔드에 업로드 (multipart)
+2. 백엔드가 세션을 `processing`으로 생성하고 백그라운드 분석 시작 → Whisper API 호출 (STT)
+3. 전사 텍스트 + 아이 나이(개월) → Claude API 호출 (분석)
+4. 분석 결과를 MariaDB에 저장, 세션 상태를 `completed`로 갱신
+5. 로컬 디스크에서 오디오 파일 즉시 삭제 (성공/실패 무관)
+6. 앱이 `GET /sessions/:id` 폴링으로 완료 확인 후 `GET /sessions/:id/result`로 결과 조회
 
 **예상 처리 시간:** 5분 녹음 기준 약 20~40초
 
@@ -93,42 +97,44 @@
 
 ## 5. 데이터 모델
 
-```sql
--- 사용자
-users
-  id          uuid PK
-  email       text
-  provider    text  (kakao | naver | google | email)
-  created_at  timestamp
+> MariaDB(TypeORM) 기준. 컬럼명은 TypeORM 엔티티의 camelCase를 그대로 사용한다(앱 모델 키도 이에 맞춤). JSON 컬럼(summary/feedbacks)은 Claude 응답을 그대로 저장하므로 내부 키는 snake_case 유지.
 
--- 아이 프로필
-children
-  id          uuid PK
-  user_id     uuid FK → users
-  name        text
-  birth_date  date
-  created_at  timestamp
-
--- 분석 세션
-sessions
+```
+-- 사용자 (users)
   id           uuid PK
-  child_id     uuid FK → children
-  recorded_at  timestamp
-  duration_sec int
-  status       text  (processing | completed | failed)
+  email        varchar  unique, nullable
+  password     varchar  nullable (bcrypt 해시, select:false)
+  provider     enum     (email | google | kakao)
+  providerId   varchar  nullable (소셜 고유 ID)
+  createdAt    datetime
 
--- 분석 결과
-analysis_results
-  id               uuid PK
-  session_id       uuid FK → sessions
-  summary          jsonb
-  feedbacks        jsonb
-  raw_transcript   text
-  child_age_months int
-  created_at       timestamp
+-- 아이 프로필 (children)
+  id           uuid PK
+  userId       varchar  FK → users.id
+  name         varchar
+  birthDate    date
+  createdAt    datetime
+
+-- 분석 세션 (sessions)
+  id           uuid PK
+  childId      varchar  FK → children.id
+  userId       varchar
+  audioPath    varchar  nullable (분석 후 null)
+  durationSec  int      default 0
+  status       enum     (processing | completed | failed)
+  recordedAt   datetime
+
+-- 분석 결과 (analysis_results)
+  id              uuid PK
+  sessionId       varchar  FK → sessions.id (1:1)
+  summary         json
+  feedbacks       json
+  rawTranscript   text     nullable
+  childAgeMonths  int
+  createdAt       datetime
 ```
 
-**feedbacks JSONB 구조:**
+**feedbacks JSON 구조:**
 ```json
 [
   {
@@ -140,7 +146,7 @@ analysis_results
 ]
 ```
 
-**summary JSONB 구조:**
+**summary JSON 구조:**
 ```json
 {
   "tone": "지시적",
@@ -192,8 +198,8 @@ analysis_results
 - Claude 응답 JSON 파싱 → feedbacks 모델 변환
 
 **Integration 테스트**
-- Supabase Auth 소셜 로그인 연동
-- Edge Function 전체 파이프라인 (실제 API 호출)
+- 자체 JWT 인증 + 소셜 로그인(구글/카카오) 연동
+- 백엔드 Analysis 모듈 전체 파이프라인 (Whisper + Claude 실제 API 호출)
 
 **수동 테스트 (MVP)**
 - 실제 대화 녹음 5건으로 코칭 품질 검증

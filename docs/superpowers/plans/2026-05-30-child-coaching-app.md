@@ -1,5 +1,7 @@
 # 아이 훈육 코칭 앱 구현 계획
 
+> ⚠️ **이력 문서 (2026-05-30 갱신):** 이 계획서는 **초기 Supabase 기반 설계**로 작성·실행된 시점의 기록물이다. 이후 구현 단계에서 백엔드를 **자체 NestJS + MariaDB(Docker Compose)**로 전환했다. 따라서 본 문서의 Supabase 관련 작업 내용은 현행 구조와 다르다. **현재 아키텍처의 정본은 [HLD.md](../../HLD.md)와 [LLD.md](../../LLD.md)**, 설계 의도는 [child-coaching-design.md](../specs/2026-05-30-child-coaching-design.md)를 참고하라.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 부모가 아이와의 대화를 녹음하면 AI가 연령별 훈육 코칭을 제공하는 Flutter 앱 MVP 구현
