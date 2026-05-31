@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -19,12 +20,66 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool _loading = false;
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final now = DateTime.now();
+    DateTime temp = _birthDate ?? DateTime(now.year - 3, now.month, now.day);
+
+    final picked = await showModalBottomSheet<DateTime>(
       context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 3)),
-      firstDate: DateTime(2010),
-      lastDate: DateTime.now(),
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: SizedBox(
+            height: 320,
+            child: Column(
+              children: [
+                // 헤더: 취소 / 제목 / 확인
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('취소',
+                            style: TextStyle(color: AppColors.sub, fontSize: 15)),
+                      ),
+                      const Text('생년월일',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: AppColors.ink)),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, temp),
+                        child: const Text('확인',
+                            style: TextStyle(
+                                color: AppColors.blue2,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15)),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.line),
+                // 휠 피커
+                Expanded(
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: temp,
+                    minimumDate: DateTime(2010, 1, 1),
+                    maximumDate: now,
+                    onDateTimeChanged: (d) => temp = d,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
+
     if (picked != null) setState(() => _birthDate = picked);
   }
 
