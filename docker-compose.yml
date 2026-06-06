@@ -4,10 +4,11 @@ services:
   db:
     image: mariadb:11
     restart: unless-stopped
-    # MariaDB 11은 인증서 없이도 SSL capability를 광고해서
-    # 일부 GUI 클라이언트(TablePlus 등)와 호환성 문제 발생. 127.0.0.1만 노출하는
-    # 내부망 DB라 SSL 광고를 끄는 것이 안전.
-    command: ["--skip-ssl"]
+    # SSL/TLS 활성화. 인증서는 scripts/gen-db-certs.sh 로 생성하여 db/certs 에 둠.
+    command:
+      - "--ssl-ca=/etc/mysql/certs/ca.crt"
+      - "--ssl-cert=/etc/mysql/certs/server.crt"
+      - "--ssl-key=/etc/mysql/certs/server.key"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
       MYSQL_DATABASE: ${DB_NAME:-pretty_four}
@@ -15,6 +16,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-apppass}
     volumes:
       - db_data:/var/lib/mysql
+      - ./db/certs:/etc/mysql/certs:ro
     ports:
       - "127.0.0.1:3306:3306"
     healthcheck:
