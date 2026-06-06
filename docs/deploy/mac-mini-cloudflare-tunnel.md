@@ -14,7 +14,7 @@
 ## 0. 사전 준비물
 
 - 항상 켜둘 **맥미니** (Apple Silicon 권장, RAM 8GB+)
-- **Cloudflare 계정**(무료) + **본인 소유 도메인**(예: `ippeunne4.com`) — 도메인을 Cloudflare에 등록(네임서버 이전)해 둘 것
+- **Cloudflare 계정**(무료) + **본인 소유 도메인**(현재: `sprout-labs.kr`, 백엔드 서브도메인 `pretty-four.sprout-labs.kr`) — 도메인을 Cloudflare에 등록(네임서버 이전)해 둘 것
 - 프로젝트 코드(이 저장소)
 - 백엔드 API 키: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
 
@@ -60,6 +60,11 @@ DB_NAME=pretty_four
 DB_USER=app
 DB_PASSWORD=<강력한_DB_비밀번호>
 DB_ROOT_PASSWORD=<강력한_root_비밀번호>
+
+# 운영: false → 스키마는 마이그레이션으로 관리. 부팅 시 자동 적용(app.module migrationsRun).
+DB_SYNCHRONIZE=false
+# 웹 클라이언트를 붙일 때만 도메인 제한(쉼표 구분). 모바일 전용이면 생략 가능(미설정=전체 허용).
+CORS_ORIGIN=https://pretty-four.sprout-labs.kr
 
 JWT_SECRET=<openssl rand -base64 48 로 생성한 긴 랜덤값>
 JWT_EXPIRES_IN=7d
@@ -132,22 +137,22 @@ tunnel: <TUNNEL_ID>
 credentials-file: /Users/<사용자명>/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
-  - hostname: api.ippeunne4.com      # 원하는 서브도메인
+  - hostname: pretty-four.sprout-labs.kr      # 원하는 서브도메인
     service: http://localhost:3000
   - service: http_status:404
 ```
 
 ### 5-4. DNS 라우팅 연결
 ```bash
-cloudflared tunnel route dns pretty-four api.ippeunne4.com
-# → Cloudflare DNS에 api.ippeunne4.com → 터널 CNAME 자동 추가
+cloudflared tunnel route dns pretty-four pretty-four.sprout-labs.kr
+# → Cloudflare DNS에 pretty-four.sprout-labs.kr → 터널 CNAME 자동 추가
 ```
 
 ### 5-5. 동작 테스트
 ```bash
 cloudflared tunnel run pretty-four
 # 다른 터미널/외부에서:
-curl -i https://api.ippeunne4.com/auth/login -X POST -H "Content-Type: application/json" -d '{}'
+curl -i https://pretty-four.sprout-labs.kr/auth/login -X POST -H "Content-Type: application/json" -d '{}'
 # 400/401 이면 외부에서 HTTPS로 백엔드까지 정상 연결됨
 ```
 확인되면 Ctrl-C로 중지하고 다음 단계(서비스 등록)로.
@@ -185,7 +190,7 @@ sudo pmset -a autorestart 1
 `pretty_four/.env`의 `API_BASE_URL`을 터널 도메인으로 변경:
 
 ```dotenv
-API_BASE_URL=https://api.ippeunne4.com
+API_BASE_URL=https://pretty-four.sprout-labs.kr
 ```
 
 - 이제 실제 HTTPS이므로 **iOS ATS 예외(`NSAllowsLocalNetworking`)는 불필요**합니다. `ios/Runner/Info.plist`에서 해당 블록을 제거해도 됩니다(개발 중 localhost를 계속 쓸 거면 유지).
@@ -196,7 +201,7 @@ API_BASE_URL=https://api.ippeunne4.com
 ## 8. 운영 점검 체크리스트
 
 - [ ] `docker compose ps` — backend/db **Up**
-- [ ] `curl https://api.도메인/auth/login` → 400/401 (외부에서 접속됨)
+- [ ] `curl https://pretty-four.sprout-labs.kr/auth/login` → 400/401 (외부에서 접속됨)
 - [ ] DB 포트(3306)는 `127.0.0.1`에만 바인딩 — 호스트 외부 IP에는 노출 X (3단계)
 - [ ] `backend/.env` 비밀키 설정 + git 미포함(`.gitignore`)
 - [ ] 맥미니 절전 해제 + 정전 자동 부팅
@@ -218,10 +223,17 @@ docker compose exec db sh -c \
 
 ---
 
-## 10. 운영 전 유의 (추후 개선)
+## 10. 스키마 마이그레이션 & CORS (DJS-12에서 적용됨)
 
-- **TypeORM `synchronize: true`**: 현재 엔티티 변경 시 스키마가 자동 변경됩니다. 운영 데이터가 쌓이면 **마이그레이션 방식**으로 전환 권장(의도치 않은 스키마 변경/데이터 손실 방지).
-- **CORS**: 백엔드가 `origin: '*'`입니다. 웹 클라이언트를 붙일 경우 도메인 제한 권장.
+- **TypeORM 마이그레이션**: `DB_SYNCHRONIZE=false`면 스키마를 마이그레이션으로 관리하고, **부팅 시 `migrationsRun`으로 자동 적용**됩니다(초기 마이그레이션 `src/migrations/*-Init.ts` 포함). 엔티티 변경 시:
+  ```bash
+  # 새 DB 변경분 마이그레이션 생성(개발 머신, DB 연결 필요)
+  npm run migration:generate src/migrations/<이름>
+  # 수동 적용(운영에선 컨테이너 부팅 시 자동)
+  npm run migration:run
+  ```
+  > ⚠️ **이미 `synchronize:true`로 만든 기존 DB**에 마이그레이션을 처음 도입할 때는, 테이블이 이미 있어 Init 마이그레이션이 충돌합니다. 출시 전(실데이터 없음)이라면 **DB를 비우고 새로** 시작하는 게 가장 깔끔합니다. 실데이터가 있으면 `migrations` 테이블에 Init을 "적용됨"으로 수동 기록(fake)하세요.
+- **CORS**: `CORS_ORIGIN`(쉼표 구분)으로 제한합니다. 미설정 시 전체 허용(개발). 모바일 전용이면 CORS는 영향이 적지만, 웹 클라이언트가 있으면 도메인을 지정하세요.
 - **가용성**: 가정 회선·정전·macOS 업데이트로 일시 중단될 수 있음(무중단 보장 어려움). 사용자가 늘면 클라우드(Lightsail/NHN 등)로 이전 검토 — Docker Compose라 이전이 쉬움.
 - **비용**: 서버비 0원이지만 Whisper(분당 $0.006)·Claude 토큰 과금은 사용량만큼 발생.
 
