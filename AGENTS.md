@@ -53,7 +53,11 @@ pretty-four/                  ← 부모 git 저장소 (백엔드·문서·인�
 | Flutter 테스트 | `cd pretty_four && flutter test` | `All tests passed!` (현재 13개) |
 | 백엔드 타입체크 | `cd backend && npm run typecheck` | exit 0, 에러 없음 |
 | 백엔드 빌드 | `cd backend && npm run build` | exit 0 |
+| 백엔드 단위 테스트 | `cd backend && npm run test` | exit 0 (DB 불필요, mocked repo) |
+| 백엔드 E2E | `cd backend && npm run test:e2e` | exit 0 (MariaDB 필요: `docker compose up -d db`) |
 | 백엔드 기동 | `docker compose up -d --build backend` | `Server running on port 3000` |
+
+> **3단계 종결 검증:** 정적(typecheck/build/analyze) → 런타임/행위(단위 테스트, flutter test) → E2E(`test:e2e` supertest로 실제 HTTP 201/200/401/409). AI 분석 파이프라인은 외부 키가 필요해 [docs/manual-ai-pipeline-check.md](./docs/manual-ai-pipeline-check.md)로 수동 검증한다.
 
 기능별 검증 명령은 [`feature_list.json`](./feature_list.json)의 각 항목 `verification` 필드 참조.
 
@@ -64,10 +68,19 @@ pretty-four/                  ← 부모 git 저장소 (백엔드·문서·인�
 - **Flutter:** 비즈니스 로직(서비스/네비게이션/상태)과 UI를 분리. 공통 UI는 `lib/widgets/app_widgets.dart`, 디자인 토큰은 `lib/core/theme.dart`.
 - **백엔드:** 모듈 단위(`*.module.ts`/`*.service.ts`/`*.controller.ts`). 보호 라우트는 `JwtAuthGuard`. 검증은 DTO + `class-validator`.
 
+> 위 **모델 키 매핑**과 **보호 라우트 가드** 불변식은 `scripts/arch-guard.sh`로 자동 강제된다(CI `arch-guard` job). 산문 규칙이 아니라 실행 가능 체크다 — `bash scripts/arch-guard.sh`로 로컬 확인.
+
 ## 6. 스코프 경계
 
-- **포함(MVP):** 이메일/구글/카카오 로그인, 단일 아이 프로필, 녹음→분석→결과, 히스토리.
-- **제외(추후):** 네이버 로그인, 다중 아이, 추세 그래프, 푸시 알림, 오디오 보관 옵션, 온디바이스 STT. (근거: [docs/superpowers/specs](./docs/superpowers/specs/))
+- **포함(MVP):** 이메일/구글/카카오 로그인, **다중 아이 프로필(활성 아이 전환)**, 녹음→분석→결과, 히스토리.
+- **제외(추후):** 네이버 로그인, 추세 그래프, 푸시 알림, 오디오 보관 옵션, 온디바이스 STT. (근거: [docs/superpowers/specs](./docs/superpowers/specs/))
+- **다중 아이 설계:** [docs/superpowers/specs/2026-05-31-multi-child-design.md](./docs/superpowers/specs/2026-05-31-multi-child-design.md) (활성 아이는 서버 `User.activeChildId`에 저장, 삭제 cascade).
+
+### 단일 활성 작업 (WIP=1)
+
+동시에 진행 중인 기능은 **최대 1개**다. 새 작업을 시작하기 전에 이전 작업을 `pass`(검증 통과) 또는 `todo`(보류)로 종결한다. `feature_list.json`에서 `status: "wip"`이거나 `active: true`인 항목은 **항상 1개 이하**여야 한다(불변식). 여러 기능을 동시에 미완성으로 벌여두지 않는다 — 코드량보다 "끝난 작업"이 중요하다.
+
+검증: `jq -e '[.features[] | select(.status=="wip")] | length <= 1' feature_list.json`
 
 ## 7. 더 읽기 (점진적 공개)
 

@@ -22,6 +22,7 @@
 - [ ] `claude-progress.md`에 이번 작업 1줄 이상 기록
 - [ ] 기능 상태 변동 시 `feature_list.json`의 `status`/`evidence` 갱신
 - [ ] 세션 종료 시 `session-handoff.md` 갱신
+- [ ] WIP=1 확인: `jq -e '[.features[] | select(.status=="wip")] | length <= 1' feature_list.json` → `true` (활성 작업 1개 이하)
 
 ## 완료 주장 규칙
 - [ ] "통과/완료"는 위 명령을 **실제 실행한 출력**으로만 주장한다. 파일이 통과한다고 *말하는* 것은 증거가 아니다.

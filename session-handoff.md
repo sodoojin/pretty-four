@@ -2,13 +2,14 @@
 
 > 다음 세션/에이전트가 즉시 이어받기 위한 현재 상태 스냅샷. 작업 종료 시 갱신.
 
-**최종 갱신:** 2026-05-30
+**최종 갱신:** 2026-05-31
 
 ## 지금 어디까지 됐나
 - MVP 기능 전부 구현 + 소프트 파스텔 디자인 적용 완료.
 - 백엔드(NestJS+MariaDB) Docker로 동작, AI 파이프라인 E2E 확인됨(샘플 음성).
-- 하네스 아티팩트(AGENTS/README/init.sh/feature_list/progress/handoff/clean-state) 정비 완료.
-- 모든 DoD 검증 통과: `flutter analyze`, `flutter test`(13), `npm run check`.
+- **하네스 개선 5종(Linear DJS-5~9) 완료 + 검증** (2026-05-31): WIP=1 규율, arch-guard 스크립트+CI, 백엔드 테스트(단위 11 + E2E 8), 구조적 로깅(correlationId), CI 3단계(backend/e2e/smoke). 상세는 claude-progress.md.
+- 모든 DoD 검증 통과: `flutter analyze`, `flutter test`(13), `npm run check`, `npm run test`(11), `npm run test:e2e`(8, MariaDB 필요), `bash scripts/arch-guard.sh`. docker 기동 스모크 로컬 확인.
+- **미커밋 상태**: 변경은 작업 트리에만 있음. 커밋은 사용자 승인 후. (백엔드 git 저장소; Flutter 변경 없음 → gitlink 갱신 불필요)
 
 ## 환경
 - git 저장소 2개: 부모 `pretty-four`(백엔드·문서), 중첩 `pretty_four`(Flutter). 둘 다 `main`.

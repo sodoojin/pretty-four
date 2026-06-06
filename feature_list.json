@@ -1,24 +1,27 @@
 {
   "project": "이쁜네살 (Pretty Four)",
   "updated": "2026-05-30",
-  "notes": "status 값: pass | wip | todo. 'pass'는 verification 명령을 실제 실행해 통과를 확인한 경우에만 표기한다. AI 분석(E2E) 항목은 OPENAI_API_KEY/ANTHROPIC_API_KEY와 실음성이 필요해 자동 단위검증이 아닌 수동 검증임을 명시한다.",
+  "notes": "status 값: pass | wip | todo. 'pass'는 verification 명령을 실제 실행해 통과를 확인한 경우에만 표기한다. AI 분석(E2E) 항목은 OPENAI_API_KEY/ANTHROPIC_API_KEY와 실음성이 필요해 자동 단위검증이 아닌 수동 검증임을 명시한다. WIP=1 불변식(AGENTS.md §6): status가 'wip'이거나 active:true인 항목은 항상 1개 이하여야 한다. active:true는 현재 작업 중인 단일 기능을 가리킨다.",
   "definition_of_done": [
     "cd pretty_four && flutter analyze  → No issues found!",
     "cd pretty_four && flutter test     → All tests passed!",
-    "cd backend && npm run check        → exit 0 (typecheck + build)"
+    "cd backend && npm run check        → exit 0 (typecheck + build)",
+    "cd backend && npm run test         → exit 0 (단위, DB 불필요)",
+    "cd backend && npm run test:e2e     → exit 0 (E2E, MariaDB 필요)"
   ],
   "features": [
     {
       "id": "auth-email",
       "title": "이메일 회원가입/로그인 (JWT)",
       "status": "pass",
-      "evidence": "백엔드 curl: POST /auth/register→201, /auth/login→200, 잘못된 자격→401, 중복→409. 검증: cd backend && npm run check",
-      "verification": "cd backend && npm run check"
+      "evidence": "supertest E2E로 POST /auth/register→201, 중복→409, /auth/login→200, 잘못된 비밀번호→401, 빈 body→400 자동 검증. 단위 테스트로 register/login 로직(409/401) 검증. 검증: cd backend && npm run test && npm run test:e2e",
+      "verification": "cd backend && npm run test && npm run test:e2e"
     },
     {
       "id": "auth-social",
       "title": "구글/카카오 소셜 로그인",
       "status": "wip",
+      "active": true,
       "evidence": "코드 경로 구현 완료(google-auth-library, kapi.kakao.com 검증). 실제 OAuth 토큰 E2E는 GOOGLE_CLIENT_ID/카카오 앱키 설정 후 기기 수동 검증 필요.",
       "verification": "수동: 실기기에서 카카오/구글 로그인 → /home 진입"
     },
@@ -26,8 +29,22 @@
       "id": "child-profile",
       "title": "아이 프로필 생성/조회",
       "status": "pass",
-      "evidence": "백엔드 curl: POST /children→201(camelCase 응답), GET /children/current→200. Flutter 모델 키 매핑 일치(테스트 포함).",
-      "verification": "cd pretty_four && flutter test && cd ../backend && npm run check"
+      "evidence": "supertest E2E: POST /children→201(camelCase birthDate 응답, snake_case 부재 단언), GET /children/current→200, 토큰 없음→401. Flutter 모델 키 매핑 일치(테스트 포함).",
+      "verification": "cd pretty_four && flutter test && cd ../backend && npm run test:e2e"
+    },
+    {
+      "id": "multi-child-backend",
+      "title": "다중 아이 백엔드 (목록·활성 아이·삭제 cascade·업로드 나이)",
+      "status": "pass",
+      "evidence": "User.activeChildId 추가. supertest E2E: GET /children 목록, 첫 아이 자동 활성, PUT /children/active 전환, 없는 아이→404, 타인 아이→403, DELETE cascade(세션+분석 0건 확인), GET /sessions?childId= 필터, 활성 삭제 시 재지정/null. 단위: ChildrenService getActive/setActive/create/remove. upload는 전달 childId로 나이 계산(findCurrent 제거).",
+      "verification": "cd backend && npm run test && npm run test:e2e"
+    },
+    {
+      "id": "multi-child-app",
+      "title": "다중 아이 Flutter (목록·추가·수정·삭제·활성 전환·히스토리 스코프)",
+      "status": "pass",
+      "evidence": "ChildService getChildren/getActiveChild/setActiveChild/updateChild/deleteChild. 아이 관리 화면(/children: 목록·추가·수정·삭제 확인·활성 선택), 홈 헤더 전환기(바텀시트), 설정 메뉴. SessionService가 childId 쿼리 전송(히스토리 활성 스코프, 기존 미전송 버그 수정). flutter analyze clean, flutter test 통과(Child 목록 파싱 테스트 추가). 수동 시나리오(시뮬레이터 전환/삭제)는 별도 확인 필요.",
+      "verification": "cd pretty_four && flutter analyze && flutter test"
     },
     {
       "id": "recording",
@@ -70,6 +87,13 @@
       "status": "pass",
       "evidence": "analysis.service runAnalysis finally: fs.unlinkSync + audioPath=null. 더미 업로드 후 /app/uploads 파일 0개 확인.",
       "verification": "수동: 업로드 후 docker compose exec backend ls /app/uploads → 비어있음"
+    },
+    {
+      "id": "observability-logging",
+      "title": "백엔드 구조적 로깅 (correlation ID + JSON)",
+      "status": "pass",
+      "evidence": "CorrelationIdMiddleware + LoggingInterceptor(APP_INTERCEPTOR). 요청 1줄 JSON 로그(correlationId/method/path/status/latencyMs, 에러 시 error/message). analysis 파이프라인 단계 로그(transcribe/analyze/completed/failed/audio.deleted). PII·본문·오디오 경로 미기록. 로컬 기동 후 grep correlationId 확인.",
+      "verification": "cd backend && npm run check; 기동 후 요청 → 로그에 correlationId(JSON)"
     }
   ]
 }

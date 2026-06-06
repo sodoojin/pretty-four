@@ -2,6 +2,15 @@
 
 > 작업 단위로 추가. 최신 항목이 위. "완료"는 검증 명령 통과를 확인한 경우만.
 
+## 2026-05-31
+
+### 하네스 개선 5종 (Linear DJS-5~9, A등급 목표)
+- **DJS-7 WIP=1 규율:** AGENTS.md §6에 단일 활성 작업 규칙, feature_list `active` 마커 + "wip≤1" 불변식, clean-state 체크 추가. 검증: `jq` 불변식 true.
+- **DJS-8 아키텍처 가드:** `scripts/arch-guard.sh`(보호 라우트 `@UseGuards(JwtAuthGuard)` + 엔티티/DTO camelCase 검사, 위반 시 what/why/how-to-fix). CI `arch-guard` job. 검증: 정상 exit 0, 의도적 위반 exit 1.
+- **DJS-5 백엔드 테스트:** Jest 단위(auth/children/sessions, mocked repo) 11개 + supertest E2E(auth 201/200/401/409/400, children 401/201 camelCase/200) 8개. `npm run test`/`test:e2e` 스크립트. AGENTS.md §4 DoD·feature_list 갱신. 검증: 단위 11 pass, E2E 8 pass, `npm run check` exit 0.
+- **DJS-9 구조적 로깅:** CorrelationIdMiddleware + LoggingInterceptor(APP_INTERCEPTOR) → 요청 JSON 로그(correlationId/method/path/status/latencyMs). analysis 파이프라인 단계 로그. PII·본문·오디오 경로 미기록. 검증: 기동 후 `grep correlationId` 확인.
+- **DJS-6 CI 3단계:** ci.yml에 backend(정적+단위)·backend-e2e(MariaDB 서비스)·backend-smoke(docker 기동 스모크) 분리. AI 파이프라인 수동검증 문서 `docs/manual-ai-pipeline-check.md`. AGENTS.md §4에 3단계 종결 검증 구조.
+
 ## 2026-05-30
 
 ### 하네스 정비 (A등급 목표)
