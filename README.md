@@ -31,6 +31,7 @@ cd pretty_four && flutter run
 - **구조:** 앱 → Cloudflare 엣지(ICN) → cloudflared(맥미니) → NestJS(Docker) → MariaDB(127.0.0.1)
 - **자동 복구:** 정전 후 자동 부팅 → 자동 로그인 → Docker 자동 기동 → 터널 launchd 자동 재연결
 - **보안:** DB는 호스트 외부 비노출, `.env`는 git 미추적, FileVault는 의도적으로 끈 상태(운영 편의 우선)
+- **스키마 관리:** `NODE_ENV=production`이라 TypeORM `synchronize` OFF · 부팅 시 마이그레이션 자동 적용(`migrationsRun`). 엔티티 변경 → `npm run migration:generate` → git push → 맥미니에서 `git pull && docker compose up -d --build backend`
 
 상세 절차·트러블슈팅·운영 점검 체크리스트는 [docs/deploy/mac-mini-cloudflare-tunnel.md](./docs/deploy/mac-mini-cloudflare-tunnel.md) 참고.
 
