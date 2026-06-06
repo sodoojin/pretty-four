@@ -68,6 +68,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // 메뉴
             _menuGroup([
               _menuItem(
+                emoji: '🧸',
+                label: '아이 관리',
+                sub: '아이 추가·전환·수정·삭제',
+                onTap: () async {
+                  await context.push('/children');
+                  _loadChild();
+                },
+              ),
+              _menuItem(
                 emoji: '🕑',
                 label: '전체 기록',
                 sub: '지난 대화 분석을 모두 확인',

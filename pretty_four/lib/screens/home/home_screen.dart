@@ -105,16 +105,97 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            _child != null ? '${_child!.name}와의 대화' : '이쁜네살',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: AppColors.ink,
-              letterSpacing: -0.01 * 20,
+          GestureDetector(
+            onTap: _child == null ? null : _showChildSwitcher,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    _child != null ? '${_child!.name}와의 대화' : '이쁜네살',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                      letterSpacing: -0.01 * 20,
+                    ),
+                  ),
+                ),
+                if (_child != null)
+                  const Icon(Icons.expand_more_rounded,
+                      color: AppColors.subStrong, size: 22),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showChildSwitcher() async {
+    final children = await _childService.getChildren();
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 18, 24, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('아이 선택',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink)),
+              ),
+            ),
+            ...children.map((c) {
+              final isActive = c.id == _child?.id;
+              return ListTile(
+                leading: const Text('🧸', style: TextStyle(fontSize: 22)),
+                title: Text(c.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: AppColors.ink)),
+                trailing: isActive
+                    ? const Icon(Icons.check_circle_rounded, color: AppColors.blue)
+                    : null,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  if (!isActive) {
+                    await _childService.setActiveChild(c.id);
+                    if (mounted) {
+                      setState(() => _loading = true);
+                      _loadData();
+                    }
+                  }
+                },
+              );
+            }),
+            const Divider(height: 1, color: AppColors.line),
+            ListTile(
+              leading: const Icon(Icons.settings_rounded, color: AppColors.subStrong),
+              title: const Text('아이 관리',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700, color: AppColors.subStrong)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await context.push('/children');
+                if (mounted) {
+                  setState(() => _loading = true);
+                  _loadData();
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

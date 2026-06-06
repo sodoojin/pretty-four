@@ -7,6 +7,7 @@ import '../screens/recording/recording_screen.dart';
 import '../screens/processing/processing_screen.dart';
 import '../screens/result/result_screen.dart';
 import '../screens/history/history_screen.dart';
+import '../screens/children/children_screen.dart';
 import '../services/child_service.dart';
 import 'auth_notifier.dart';
 
@@ -57,5 +58,6 @@ final router = GoRouter(
           ResultScreen(sessionId: state.pathParameters['sessionId']!),
     ),
     GoRoute(path: '/history', builder: (_, __) => const HistoryScreen()),
+    GoRoute(path: '/children', builder: (_, __) => const ChildrenScreen()),
   ],
 );
