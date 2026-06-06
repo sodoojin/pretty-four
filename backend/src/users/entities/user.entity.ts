@@ -23,6 +23,9 @@ export class User {
   @Column({ nullable: true })
   providerId: string;
 
+  @Column({ nullable: true })
+  activeChildId: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }

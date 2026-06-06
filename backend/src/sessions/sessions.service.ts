@@ -21,12 +21,13 @@ export class SessionsService {
     return session;
   }
 
-  findRecent(userId: string, limit = 20): Promise<Session[]> {
-    return this.repo.find({
-      where: { userId, status: SessionStatus.COMPLETED },
-      order: { recordedAt: 'DESC' },
-      take: limit,
-    });
+  findRecent(userId: string, limit = 20, childId?: string): Promise<Session[]> {
+    const where: { userId: string; status: SessionStatus; childId?: string } = {
+      userId,
+      status: SessionStatus.COMPLETED,
+    };
+    if (childId) where.childId = childId;
+    return this.repo.find({ where, order: { recordedAt: 'DESC' }, take: limit });
   }
 
   async updateStatus(id: string, status: SessionStatus): Promise<void> {

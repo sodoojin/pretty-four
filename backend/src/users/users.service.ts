@@ -25,4 +25,8 @@ export class UsersService {
   create(data: Partial<User>): Promise<User> {
     return this.repo.save(this.repo.create(data));
   }
+
+  async updateActiveChild(userId: string, childId: string | null): Promise<void> {
+    await this.repo.update(userId, { activeChildId: childId });
+  }
 }

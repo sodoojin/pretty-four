@@ -43,10 +43,22 @@ export class AnalysisService {
     return this.repo.findOne({ where: { sessionId } });
   }
 
-  async runAnalysis(sessionId: string, audioPath: string, childAgeMonths: number): Promise<void> {
+  async runAnalysis(
+    sessionId: string,
+    audioPath: string,
+    childAgeMonths: number,
+    correlationId?: string,
+  ): Promise<void> {
+    const startedAt = Date.now();
+    this.logStage('analysis.start', sessionId, correlationId, { childAgeMonths });
     try {
+      this.logStage('transcribe.start', sessionId, correlationId);
       const transcript = await this.transcribe(audioPath);
+      this.logStage('transcribe.done', sessionId, correlationId, { transcriptChars: transcript.length });
+
+      this.logStage('analyze.start', sessionId, correlationId);
       const result = await this.analyze(transcript, childAgeMonths);
+      this.logStage('analyze.done', sessionId, correlationId, { feedbackCount: result.feedbacks.length });
 
       await this.repo.save(this.repo.create({
         sessionId,
@@ -57,15 +69,31 @@ export class AnalysisService {
       }));
 
       await this.sessions.updateStatus(sessionId, SessionStatus.COMPLETED);
+      this.logStage('analysis.completed', sessionId, correlationId, { latencyMs: Date.now() - startedAt });
     } catch (err) {
-      this.logger.error(`Analysis failed for session ${sessionId}: ${err.message}`);
+      this.logStage('analysis.failed', sessionId, correlationId, {
+        error: err?.name,
+        message: err?.message,
+        latencyMs: Date.now() - startedAt,
+      });
       await this.sessions.updateStatus(sessionId, SessionStatus.FAILED);
     } finally {
       try {
         fs.unlinkSync(audioPath);
       } catch {}
       await this.sessions.clearAudioPath(sessionId);
+      this.logStage('audio.deleted', sessionId, correlationId);
     }
+  }
+
+  /** 구조적 단계 로그(JSON 1줄). 전사/분석 내용·오디오 경로 등 PII·민감 데이터는 기록하지 않는다. */
+  private logStage(
+    stage: string,
+    sessionId: string,
+    correlationId?: string,
+    extra: Record<string, unknown> = {},
+  ): void {
+    this.logger.log(JSON.stringify({ stage, sessionId, correlationId, ...extra }));
   }
 
   private async transcribe(audioPath: string): Promise<string> {

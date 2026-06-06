@@ -21,8 +21,8 @@ export class SessionsController {
   ) {}
 
   @Get()
-  list(@Request() req, @Query('limit') limit?: string) {
-    return this.sessions.findRecent(req.user.id, limit ? parseInt(limit) : 20);
+  list(@Request() req, @Query('limit') limit?: string, @Query('childId') childId?: string) {
+    return this.sessions.findRecent(req.user.id, limit ? parseInt(limit) : 20, childId);
   }
 
   @Post('upload')
@@ -46,16 +46,17 @@ export class SessionsController {
     if (!childId) throw new BadRequestException('childId가 필요합니다.');
 
     const durationSec = parseInt(durationSecStr) || 0;
-    const session = await this.sessions.create(req.user.id, childId, durationSec, file.path);
 
-    const child = await this.children.findCurrent(req.user.id);
-    if (!child) throw new BadRequestException('아이 프로필이 없습니다.');
+    // 나이 계산은 업로드 대상 아이(childId)로 — 소유권 검증 포함. (다중 아이 정확성)
+    const child = await this.children.findOneOwned(childId, req.user.id);
+
+    const session = await this.sessions.create(req.user.id, childId, durationSec, file.path);
 
     const birthDate = new Date(child.birthDate);
     const now = new Date();
     const ageMonths = (now.getFullYear() - birthDate.getFullYear()) * 12 + (now.getMonth() - birthDate.getMonth());
 
-    this.analysis.runAnalysis(session.id, file.path, ageMonths).catch(() => {});
+    this.analysis.runAnalysis(session.id, file.path, ageMonths, req.correlationId).catch(() => {});
 
     return { session_id: session.id };
   }
