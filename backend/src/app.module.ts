@@ -24,7 +24,7 @@ import { AnalysisResult } from './analysis/entities/analysis-result.entity';
         username: config.get('DB_USER'),
         password: config.get('DB_PASSWORD'),
         entities: [User, Child, Session, AnalysisResult],
-        synchronize: true,
+        synchronize: config.get('NODE_ENV') !== 'production',
         charset: 'utf8mb4',
       }),
       inject: [ConfigService],
