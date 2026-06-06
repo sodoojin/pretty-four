@@ -61,10 +61,10 @@ DB_USER=app
 DB_PASSWORD=<강력한_DB_비밀번호>
 DB_ROOT_PASSWORD=<강력한_root_비밀번호>
 
-# 운영: false → 스키마는 마이그레이션으로 관리. 부팅 시 자동 적용(app.module migrationsRun).
-DB_SYNCHRONIZE=false
+# production → synchronize 꺼지고 마이그레이션 자동 적용(app.module migrationsRun).
+NODE_ENV=production
 # 웹 클라이언트를 붙일 때만 도메인 제한(쉼표 구분). 모바일 전용이면 생략 가능(미설정=전체 허용).
-CORS_ORIGIN=https://pretty-four.sprout-labs.kr
+CORS_ORIGINS=https://pretty-four.sprout-labs.kr
 
 JWT_SECRET=<openssl rand -base64 48 로 생성한 긴 랜덤값>
 JWT_EXPIRES_IN=7d
@@ -225,7 +225,7 @@ docker compose exec db sh -c \
 
 ## 10. 스키마 마이그레이션 & CORS (DJS-12에서 적용됨)
 
-- **TypeORM 마이그레이션**: `DB_SYNCHRONIZE=false`면 스키마를 마이그레이션으로 관리하고, **부팅 시 `migrationsRun`으로 자동 적용**됩니다(초기 마이그레이션 `src/migrations/*-Init.ts` 포함). 엔티티 변경 시:
+- **TypeORM 마이그레이션**: `NODE_ENV=production`이면 synchronize가 꺼지고 스키마를 마이그레이션으로 관리하며, **부팅 시 `migrationsRun`으로 자동 적용**됩니다(초기 마이그레이션 `src/migrations/*-Init.ts` 포함). 엔티티 변경 시:
   ```bash
   # 새 DB 변경분 마이그레이션 생성(개발 머신, DB 연결 필요)
   npm run migration:generate src/migrations/<이름>
@@ -233,7 +233,7 @@ docker compose exec db sh -c \
   npm run migration:run
   ```
   > ⚠️ **이미 `synchronize:true`로 만든 기존 DB**에 마이그레이션을 처음 도입할 때는, 테이블이 이미 있어 Init 마이그레이션이 충돌합니다. 출시 전(실데이터 없음)이라면 **DB를 비우고 새로** 시작하는 게 가장 깔끔합니다. 실데이터가 있으면 `migrations` 테이블에 Init을 "적용됨"으로 수동 기록(fake)하세요.
-- **CORS**: `CORS_ORIGIN`(쉼표 구분)으로 제한합니다. 미설정 시 전체 허용(개발). 모바일 전용이면 CORS는 영향이 적지만, 웹 클라이언트가 있으면 도메인을 지정하세요.
+- **CORS**: `CORS_ORIGINS`(쉼표 구분)으로 제한합니다. 미설정 시 전체 허용(개발). 모바일 전용이면 CORS는 영향이 적지만, 웹 클라이언트가 있으면 도메인을 지정하세요.
 - **가용성**: 가정 회선·정전·macOS 업데이트로 일시 중단될 수 있음(무중단 보장 어려움). 사용자가 늘면 클라우드(Lightsail/NHN 등)로 이전 검토 — Docker Compose라 이전이 쉬움.
 - **비용**: 서버비 0원이지만 Whisper(분당 $0.006)·Claude 토큰 과금은 사용량만큼 발생.
 
