@@ -5,9 +5,16 @@
 
 **전체 그림**
 ```
-[모바일 앱] ──HTTPS──> [Cloudflare 엣지] ──암호화 터널──> [cloudflared(맥미니)] ──http──> [localhost:3000 백엔드(Docker)]
-                                                                                            └── MariaDB(Docker, 내부망)
+[모바일 앱] ──HTTPS──> [Cloudflare 엣지] ──암호화 터널──> [cloudflared(맥미니)]
+                                                              ↓ localhost:3000
+                                                          [Caddy 리버스 프록시]
+                                                              ↓ /health 기반 round-robin
+                                                          ├─ backend-blue  (Docker)
+                                                          └─ backend-green (Docker)
+                                                              ↓ db:3306 (내부망)
+                                                          [MariaDB (Docker)]
 ```
+> Caddy + blue/green 구조로 **무중단 배포(zero-downtime)** 지원. 배포 시 한 인스턴스를 재생성하는 동안 다른 인스턴스가 트래픽을 처리합니다.
 
 ---
 
@@ -94,23 +101,42 @@ openssl rand -base64 48
 
 ---
 
-## 4. 백엔드 + DB 기동
+## 4. 전체 스택 기동 (DB + backend-blue/green + Caddy)
 
 ```bash
 cd ~/pretty-four
 docker compose up -d --build
-# 상태 확인
+# 상태 확인 (4개 컨테이너: db, backend-blue, backend-green, caddy)
 docker compose ps
-docker compose logs -f backend     # "Server running on port 3000" 확인 후 Ctrl-C
+docker compose logs -f backend-blue     # "Server running on port 3000" 확인 후 Ctrl-C
 ```
+
+호스트 포트 3000은 **Caddy**가 잡고, 내부적으로 `backend-blue:3000` / `backend-green:3000`으로 round-robin 라우팅합니다.
 
 헬스 체크:
 ```bash
+# 백엔드 헬스 엔드포인트
+curl -i http://localhost:3000/health
+# {"status":"ok","timestamp":"..."} + HTTP 200
+
+# 비즈니스 엔드포인트
 curl -i -X POST http://localhost:3000/auth/login -H "Content-Type: application/json" -d '{}'
 # 400(검증 실패) 또는 401 이면 정상 동작
 ```
 
-`restart: unless-stopped`가 설정되어 있어, 재부팅 후 Docker가 뜨면 컨테이너도 자동 재시작됩니다.
+모든 서비스에 `restart: unless-stopped`가 설정되어 있어, 재부팅 후 Docker가 뜨면 자동 재시작됩니다.
+
+### 무중단 배포 (이후 변경 시)
+
+코드 변경 → git push → 맥미니에서:
+
+```bash
+cd ~/pretty-four
+git pull origin main
+./scripts/deploy.sh         # 빌드 → blue 재생성 → green 재생성. 사용자 다운타임 0.
+```
+
+`scripts/deploy.sh`는 한 인스턴스씩 순차로 재생성하며 헬스 OK까지 대기합니다. Caddy가 healthy 인스턴스에만 트래픽을 보내므로 외부에선 단절이 느껴지지 않습니다.
 
 ---
 
@@ -200,12 +226,14 @@ API_BASE_URL=https://pretty-four.sprout-labs.kr
 
 ## 8. 운영 점검 체크리스트
 
-- [ ] `docker compose ps` — backend/db **Up**
+- [ ] `docker compose ps` — db, backend-blue, backend-green, caddy 모두 **Up (healthy)**
+- [ ] `curl https://pretty-four.sprout-labs.kr/health` → `{"status":"ok"}` (HTTP 200)
 - [ ] `curl https://pretty-four.sprout-labs.kr/auth/login` → 400/401 (외부에서 접속됨)
 - [ ] DB 포트(3306)는 `127.0.0.1`에만 바인딩 — 호스트 외부 IP에는 노출 X (3단계)
 - [ ] `backend/.env` 비밀키 설정 + git 미포함(`.gitignore`)
 - [ ] 맥미니 절전 해제 + 정전 자동 부팅
 - [ ] cloudflared 서비스 등록(재부팅 자동 시작)
+- [ ] `./scripts/deploy.sh` 한 번 실행해서 무중단 배포 동작 확인
 
 ---
 
@@ -234,7 +262,7 @@ docker compose exec db sh -c \
   ```
   > ⚠️ **이미 `synchronize:true`로 만든 기존 DB**에 마이그레이션을 처음 도입할 때는, 테이블이 이미 있어 Init 마이그레이션이 충돌합니다. 출시 전(실데이터 없음)이라면 **DB를 비우고 새로** 시작하는 게 가장 깔끔합니다. 실데이터가 있으면 `migrations` 테이블에 Init을 "적용됨"으로 수동 기록(fake)하세요.
 - **CORS**: `CORS_ORIGINS`(쉼표 구분)으로 제한합니다. 미설정 시 전체 허용(개발). 모바일 전용이면 CORS는 영향이 적지만, 웹 클라이언트가 있으면 도메인을 지정하세요.
-- **가용성**: 가정 회선·정전·macOS 업데이트로 일시 중단될 수 있음(무중단 보장 어려움). 사용자가 늘면 클라우드(Lightsail/NHN 등)로 이전 검토 — Docker Compose라 이전이 쉬움.
+- **가용성**: 코드 배포는 blue/green으로 무중단이지만, 가정 회선·정전·macOS 재부팅 같은 인프라 단절은 막을 수 없습니다(자동 복구는 됨). 사용자가 늘면 클라우드(Lightsail/NHN 등)로 이전 검토 — Docker Compose라 이전이 쉬움.
 - **비용**: 서버비 0원이지만 Whisper(분당 $0.006)·Claude 토큰 과금은 사용량만큼 발생.
 
 ---
@@ -242,12 +270,17 @@ docker compose exec db sh -c \
 ## 부록 A. 자주 쓰는 명령
 
 ```bash
-docker compose up -d --build      # 빌드 후 기동
-docker compose restart backend    # 백엔드 재시작
-docker compose logs -f backend    # 로그
-docker compose down               # 중지(볼륨 유지)
-cloudflared tunnel list           # 터널 목록
-sudo launchctl list | grep cloudflared   # 터널 서비스 상태
+./scripts/deploy.sh                       # 무중단 배포 (코드 변경 적용 시)
+docker compose up -d --build              # 전체 스택 빌드 + 기동 (최초/대공사 시)
+docker compose ps                         # db/blue/green/caddy 상태
+docker compose logs -f backend-blue       # blue 로그
+docker compose logs -f backend-green      # green 로그
+docker compose logs -f caddy              # 라우터 로그
+docker compose restart backend-blue       # 단일 인스턴스 재시작
+docker compose down                       # 전체 중지(볼륨 유지)
+curl http://localhost:3000/health         # 라우터 통과 헬스 확인
+cloudflared tunnel list                   # 터널 목록
+sudo launchctl list | grep cloudflared    # 터널 서비스 상태
 ```
 
 ## 부록 B. 도메인 없이 빠른 테스트 (TryCloudflare)

@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { CorrelationIdMiddleware } from './common/logging/correlation-id.middleware';
 import { LoggingInterceptor } from './common/logging/logging.interceptor';
+import { HealthController } from './health/health.controller';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ChildrenModule } from './children/children.module';
@@ -45,6 +46,7 @@ import { AnalysisResult } from './analysis/entities/analysis-result.entity';
     SessionsModule,
     AnalysisModule,
   ],
+  controllers: [HealthController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: LoggingInterceptor }],
 })
 export class AppModule implements NestModule {

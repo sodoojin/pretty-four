@@ -28,10 +28,11 @@ cd pretty_four && flutter run
 운영 백엔드는 **맥미니 + Cloudflare Tunnel** 구성으로 자가 호스팅 중입니다.
 
 - **API 엔드포인트:** `https://pretty-four.sprout-labs.kr`
-- **구조:** 앱 → Cloudflare 엣지(ICN) → cloudflared(맥미니) → NestJS(Docker) → MariaDB(127.0.0.1)
+- **구조:** 앱 → Cloudflare 엣지(ICN) → cloudflared(맥미니) → Caddy → NestJS blue/green (Docker) → MariaDB(127.0.0.1)
+- **무중단 배포 (zero-downtime):** Caddy가 `/health` 기반으로 healthy 인스턴스에만 라우팅. blue → green 순차 재생성으로 사용자 다운타임 0초. 배포는 `./scripts/deploy.sh`
 - **자동 복구:** 정전 후 자동 부팅 → 자동 로그인 → Docker 자동 기동 → 터널 launchd 자동 재연결
 - **보안:** DB는 호스트 외부 비노출, `.env`는 git 미추적, FileVault는 의도적으로 끈 상태(운영 편의 우선)
-- **스키마 관리:** `NODE_ENV=production`이라 TypeORM `synchronize` OFF · 부팅 시 마이그레이션 자동 적용(`migrationsRun`). 엔티티 변경 → `npm run migration:generate` → git push → 맥미니에서 `git pull && docker compose up -d --build backend`
+- **스키마 관리:** `NODE_ENV=production`이라 TypeORM `synchronize` OFF · 부팅 시 마이그레이션 자동 적용(`migrationsRun`). 엔티티 변경 → `npm run migration:generate` → git push → 맥미니에서 `git pull && ./scripts/deploy.sh`
 
 상세 절차·트러블슈팅·운영 점검 체크리스트는 [docs/deploy/mac-mini-cloudflare-tunnel.md](./docs/deploy/mac-mini-cloudflare-tunnel.md) 참고.
 

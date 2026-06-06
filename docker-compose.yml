@@ -19,7 +19,8 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:
+  backend-blue:
+    image: pretty-four-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -32,11 +33,52 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 3306
+      INSTANCE_NAME: blue
+    volumes:
+      - audio_tmp:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  backend-green:
+    image: pretty-four-backend:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      INSTANCE_NAME: green
+    volumes:
+      - audio_tmp:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
-      - audio_tmp:/app/uploads
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend-blue
+      - backend-green
 
 volumes:
   db_data:
   audio_tmp:
+  caddy_data:
+  caddy_config:
