@@ -23,6 +23,17 @@ cd pretty_four && flutter run
 
 백엔드는 `http://localhost:3000`. 앱의 `pretty_four/.env`에 `API_BASE_URL=http://localhost:3000`.
 
+## 배포 (운영)
+
+운영 백엔드는 **맥미니 + Cloudflare Tunnel** 구성으로 자가 호스팅 중입니다.
+
+- **API 엔드포인트:** `https://pretty-four.sprout-labs.kr`
+- **구조:** 앱 → Cloudflare 엣지(ICN) → cloudflared(맥미니) → NestJS(Docker) → MariaDB(127.0.0.1)
+- **자동 복구:** 정전 후 자동 부팅 → 자동 로그인 → Docker 자동 기동 → 터널 launchd 자동 재연결
+- **보안:** DB는 호스트 외부 비노출, `.env`는 git 미추적, FileVault는 의도적으로 끈 상태(운영 편의 우선)
+
+상세 절차·트러블슈팅·운영 점검 체크리스트는 [docs/deploy/mac-mini-cloudflare-tunnel.md](./docs/deploy/mac-mini-cloudflare-tunnel.md) 참고.
+
 ## 검증 (Definition of Done)
 
 ```bash
@@ -40,6 +51,7 @@ cd backend && npm run typecheck && npm run build     # 타입체크 + 빌드
 | [docs/HLD.md](./docs/HLD.md) | 고수준 설계 (아키텍처·데이터 흐름) |
 | [docs/LLD.md](./docs/LLD.md) | 상세 설계 (API·스키마·화면) |
 | [docs/design/preview.html](./docs/design/preview.html) | UI 디자인 시안 |
+| [docs/deploy/mac-mini-cloudflare-tunnel.md](./docs/deploy/mac-mini-cloudflare-tunnel.md) | 운영 배포 가이드 (맥미니 + Cloudflare Tunnel) |
 
 ## 라이선스
 
