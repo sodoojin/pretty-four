@@ -3,18 +3,23 @@
 > "이쁜네살" 백엔드(NestJS + MariaDB, Docker)를 **맥미니에서 운영**하고, **Cloudflare Tunnel**로 공인 IP·포트포워딩 없이 HTTPS 공개하는 방법.
 > CGNAT 환경에서도 동작하며, 인바운드 포트를 열지 않아 안전합니다.
 
+> ⚠️ **인프라 분리(갱신):** DB(MariaDB)와 엣지 Caddy는 공유 인프라 `../sprout-infra`가 소유한다.
+> 이 repo는 `backend-blue/green`만 띄우고 공유 네트워크 `sprout-shared`에 alias로 노출한다.
+> cloudflared는 이제 **sprout-infra 엣지 Caddy(:80)**를 가리키며, 엣지가 호스트명으로 각 제품에 라우팅한다.
+
 **전체 그림**
 ```
 [모바일 앱] ──HTTPS──> [Cloudflare 엣지] ──암호화 터널──> [cloudflared(맥미니)]
-                                                              ↓ localhost:3000
-                                                          [Caddy 리버스 프록시]
-                                                              ↓ /health 기반 round-robin
-                                                          ├─ backend-blue  (Docker)
-                                                          └─ backend-green (Docker)
-                                                              ↓ db:3306 (내부망)
-                                                          [MariaDB (Docker)]
+                                                              ↓ localhost:80
+                                                          [sprout-infra 엣지 Caddy]   ← 호스트명 라우팅
+                                                              ↓ pretty-four.sprout-labs.kr, /health round-robin
+                                                          ├─ backend-blue  (Docker, alias pretty-four-backend-blue)
+                                                          └─ backend-green (Docker, alias pretty-four-backend-green)
+                                                              ↓ db:3306 (sprout-shared)
+                                                          [공유 MariaDB (sprout-infra)]
 ```
-> Caddy + blue/green 구조로 **무중단 배포(zero-downtime)** 지원. 배포 시 한 인스턴스를 재생성하는 동안 다른 인스턴스가 트래픽을 처리합니다.
+> 엣지 Caddy(sprout-infra) + blue/green 구조로 **무중단 배포(zero-downtime)** 지원. 배포 시 한 인스턴스를
+> 재생성하는 동안 다른 인스턴스가 트래픽을 처리한다. 새 제품은 `sprout-infra/caddy/sites/<slug>.caddy`로 라우팅 추가.
 
 ---
 
@@ -25,7 +30,7 @@
 - 프로젝트 코드(이 저장소)
 - 백엔드 API 키: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
 
-> 도메인이 아직 없다면: 테스트는 `cloudflared tunnel --url http://localhost:3000` (TryCloudflare, 임시 랜덤주소)로 먼저 확인 가능. 운영은 도메인 필요.
+> 도메인이 아직 없다면: 테스트는 `cloudflared tunnel --url http://localhost:80` (sprout-infra 엣지 Caddy, TryCloudflare 임시 랜덤주소)로 먼저 확인 가능. 운영은 도메인 필요.
 
 ---
 
@@ -96,31 +101,38 @@ openssl rand -base64 48
 
 - 맥미니 자체에서만 DB GUI 툴(TablePlus 등)로 `localhost:3306` 접근 가능
 - 외부망/LAN에서는 DB 포트로 직접 접근 불가
-- 백엔드는 컨테이너 내부망(`db:3306`)으로 접근하므로 영향 없음
-- cloudflared는 `localhost:3000` (백엔드)만 외부에 공개
+- 백엔드는 공유 네트워크(`sprout-shared`의 `db:3306`)로 접근하므로 영향 없음
+- cloudflared는 **sprout-infra 엣지 Caddy(`localhost:80`)**만 외부에 공개
 
 ---
 
-## 4. 전체 스택 기동 (DB + backend-blue/green + Caddy)
+## 4. 전체 스택 기동 (공유 인프라 → 제품)
 
 ```bash
+# (1) 공유 인프라: DB + 엣지 Caddy
+cd ~/sprout-infra
+docker compose up -d            # sprout-db + sprout-caddy(:80)
+docker compose ps               # 2개 컨테이너 healthy 확인
+
+# (2) 제품: backend-blue/green (공유 네트워크에 합류)
 cd ~/pretty-four
 docker compose up -d --build
-# 상태 확인 (4개 컨테이너: db, backend-blue, backend-green, caddy)
-docker compose ps
+docker compose ps               # 2개 컨테이너: backend-blue, backend-green
 docker compose logs -f backend-blue     # "Server running on port 3000" 확인 후 Ctrl-C
 ```
 
-호스트 포트 3000은 **Caddy**가 잡고, 내부적으로 `backend-blue:3000` / `backend-green:3000`으로 round-robin 라우팅합니다.
+호스트 포트 80은 **sprout-infra 엣지 Caddy**가 잡고, 호스트명(`pretty-four.sprout-labs.kr`)으로
+`pretty-four-backend-blue:3000` / `-green:3000`에 round-robin 라우팅합니다. (alias는 sprout-shared 네트워크)
 
 헬스 체크:
 ```bash
-# 백엔드 헬스 엔드포인트
-curl -i http://localhost:3000/health
+# 엣지를 통해 (호스트명 라우팅) — 맥미니 로컬에선 Host 헤더로 테스트
+curl -i -H "Host: pretty-four.sprout-labs.kr" http://localhost:80/health
 # {"status":"ok","timestamp":"..."} + HTTP 200
 
 # 비즈니스 엔드포인트
-curl -i -X POST http://localhost:3000/auth/login -H "Content-Type: application/json" -d '{}'
+curl -i -H "Host: pretty-four.sprout-labs.kr" -X POST http://localhost:80/auth/login \
+  -H "Content-Type: application/json" -d '{}'
 # 400(검증 실패) 또는 401 이면 정상 동작
 ```
 
@@ -164,7 +176,8 @@ credentials-file: /Users/<사용자명>/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
   - hostname: pretty-four.sprout-labs.kr      # 원하는 서브도메인
-    service: http://localhost:3000
+    service: http://localhost:80              # sprout-infra 엣지 Caddy (Host 헤더 보존 → 엣지가 호스트명 라우팅)
+  # 새 제품은 hostname 추가: read-with-mom.sprout-labs.kr → 동일하게 http://localhost:80
   - service: http_status:404
 ```
 
@@ -272,13 +285,13 @@ docker compose exec db sh -c \
 ```bash
 ./scripts/deploy.sh                       # 무중단 배포 (코드 변경 적용 시)
 docker compose up -d --build              # 전체 스택 빌드 + 기동 (최초/대공사 시)
-docker compose ps                         # db/blue/green/caddy 상태
+docker compose ps                         # blue/green 상태 (db/caddy는 sprout-infra)
 docker compose logs -f backend-blue       # blue 로그
 docker compose logs -f backend-green      # green 로그
-docker compose logs -f caddy              # 라우터 로그
+(cd ../sprout-infra && docker compose logs -f caddy)   # 엣지 라우터 로그
 docker compose restart backend-blue       # 단일 인스턴스 재시작
-docker compose down                       # 전체 중지(볼륨 유지)
-curl http://localhost:3000/health         # 라우터 통과 헬스 확인
+docker compose down                       # 제품 중지(공유 인프라는 sprout-infra에서 관리)
+curl -H "Host: pretty-four.sprout-labs.kr" http://localhost:80/health   # 엣지 통과 헬스 확인
 cloudflared tunnel list                   # 터널 목록
 sudo launchctl list | grep cloudflared    # 터널 서비스 상태
 ```
@@ -286,7 +299,7 @@ sudo launchctl list | grep cloudflared    # 터널 서비스 상태
 ## 부록 B. 도메인 없이 빠른 테스트 (TryCloudflare)
 
 ```bash
-# 백엔드가 localhost:3000에 떠 있는 상태에서
-cloudflared tunnel --url http://localhost:3000
+# sprout-infra 엣지 Caddy가 localhost:80에 떠 있는 상태에서
+cloudflared tunnel --url http://localhost:80
 # → https://<랜덤>.trycloudflare.com 발급 (임시, 매번 바뀜). 앱 .env에 잠깐 넣어 테스트용.
 ```

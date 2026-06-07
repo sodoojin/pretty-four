@@ -1,7 +1,8 @@
-# 인프라 정책: 별도 MariaDB를 띄우지 않는다.
-# 공유 인프라(sprout-infra)의 MariaDB를 쓰고, 논리 database 'pretty_four' + 전용 유저로 격리한다.
-# blue/green 무중단 배포 + Caddy 리버스 프록시는 유지(이 repo 소유).
-# 사전: (cd ../sprout-infra && docker compose up -d)  — DB·네트워크·논리 DB는 sprout-infra가 소유.
+# 인프라 정책: DB·엣지 리버스 프록시는 공유 인프라(sprout-infra)가 소유.
+# 이 repo는 backend-blue/green(무중단 배포 인스턴스)만 띄우고, 공유 네트워크 sprout-shared에
+# 고유 alias로 노출한다. 호스트명 라우팅 + blue/green failover는 sprout-infra 엣지 Caddy가 담당
+# (caddy/sites/pretty-four.caddy). DB는 논리 database 'pretty_four' + 전용 유저로 격리.
+# 사전: (cd ../sprout-infra && docker compose up -d)  — DB·네트워크·엣지 Caddy는 sprout-infra 소유.
 version: '3.8'
 
 services:
@@ -14,7 +15,6 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # 공유 네트워크(sprout-shared)의 db 서비스로 접속. 전용 유저 + 논리 DB.
       DB_HOST: db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:-pretty_four}
@@ -24,8 +24,9 @@ services:
     volumes:
       - audio_tmp:/app/uploads
     networks:
-      - app
-      - sprout-shared
+      sprout-shared:
+        aliases:
+          - pretty-four-backend-blue
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
       interval: 10s
@@ -48,8 +49,9 @@ services:
     volumes:
       - audio_tmp:/app/uploads
     networks:
-      - app
-      - sprout-shared
+      sprout-shared:
+        aliases:
+          - pretty-four-backend-green
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
       interval: 10s
@@ -57,30 +59,11 @@ services:
       retries: 5
       start_period: 20s
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - app
-    depends_on:
-      - backend-blue
-      - backend-green
-
+# 공유 인프라(sprout-infra)가 만든 네트워크를 외부 네트워크로 참조.
 networks:
-  # caddy ↔ backend 내부 통신
-  app:
-  # backend ↔ 공유 DB (sprout-infra 소유)
   sprout-shared:
     external: true
     name: sprout-shared
 
 volumes:
   audio_tmp:
-  caddy_data:
-  caddy_config:

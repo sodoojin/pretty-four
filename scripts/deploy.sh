@@ -1,6 +1,7 @@
 #!/bin/bash
 # 무중단 배포: 새 이미지 빌드 → blue 재생성 (green이 트래픽) → green 재생성 (blue가 트래픽)
-# 두 인스턴스가 항상 살아있고 Caddy가 헬스 기반으로 라우팅하므로 사용자 다운타임 0.
+# 두 인스턴스가 항상 살아있고 sprout-infra 엣지 Caddy가 헬스 기반으로 라우팅하므로 사용자 다운타임 0.
+# (엣지 라우팅: ../sprout-infra/caddy/sites/pretty-four.caddy)
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"

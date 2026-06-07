@@ -21,15 +21,18 @@ cp backend/.env.example backend/.env   # OPENAI_API_KEY, ANTHROPIC_API_KEY 채�
 cd pretty_four && flutter run
 ```
 
-백엔드는 `http://localhost:3000`. 앱의 `pretty_four/.env`에 `API_BASE_URL=http://localhost:3000`.
+> **인프라 공유:** DB(MariaDB)와 엣지 리버스 프록시(Caddy)는 공유 인프라 [`../sprout-infra`](../sprout-infra)가 소유한다.
+> 이 repo는 `backend-blue/green`만 띄우고 공유 네트워크 `sprout-shared`에 alias(`pretty-four-backend-blue/green`)로 노출하며,
+> 엣지 Caddy가 `pretty-four.sprout-labs.kr` → 두 인스턴스로 라우팅한다(`../sprout-infra/caddy/sites/pretty-four.caddy`).
+> 사전: `(cd ../sprout-infra && docker compose up -d)`. 로컬 접근은 엣지(:80, Host 헤더) 또는 임시 포트 노출.
 
 ## 배포 (운영)
 
 운영 백엔드는 **맥미니 + Cloudflare Tunnel** 구성으로 자가 호스팅 중입니다.
 
 - **API 엔드포인트:** `https://pretty-four.sprout-labs.kr`
-- **구조:** 앱 → Cloudflare 엣지(ICN) → cloudflared(맥미니) → Caddy → NestJS blue/green (Docker) → MariaDB(127.0.0.1)
-- **무중단 배포 (zero-downtime):** Caddy가 `/health` 기반으로 healthy 인스턴스에만 라우팅. blue → green 순차 재생성으로 사용자 다운타임 0초. 배포는 `./scripts/deploy.sh`
+- **구조:** 앱 → Cloudflare 엣지(ICN) → cloudflared(맥미니) → **sprout-infra 엣지 Caddy(:80, 호스트명 라우팅)** → NestJS blue/green (Docker) → 공유 MariaDB
+- **무중단 배포 (zero-downtime):** 엣지 Caddy가 `/health` 기반으로 healthy 인스턴스에만 라우팅. blue → green 순차 재생성으로 사용자 다운타임 0초. 배포는 `./scripts/deploy.sh`
 - **자동 복구:** 정전 후 자동 부팅 → 자동 로그인 → Docker 자동 기동 → 터널 launchd 자동 재연결
 - **보안:** DB는 호스트 외부 비노출, `.env`는 git 미추적, FileVault는 의도적으로 끈 상태(운영 편의 우선)
 - **스키마 관리:** `NODE_ENV=production`이라 TypeORM `synchronize` OFF · 부팅 시 마이그레이션 자동 적용(`migrationsRun`). 엔티티 변경 → `npm run migration:generate` → git push → 맥미니에서 `git pull && ./scripts/deploy.sh`
