@@ -19,11 +19,11 @@
 - [ ] 결과 화면에 **요약 카드**(tone/patterns/improvements) 표시
 - [ ] **타임스탬프 피드백**이 1건 이상, 각 항목에 `timestamp_sec`/`original`/`suggestion`/`reason` 포함
 - [ ] 코칭 내용이 **입력한 연령대**에 맞게 반영됨 (예: 만 2~3세면 짧은 문장·감정 이름 붙이기 권장)
-- [ ] **오디오 즉시 삭제 확인**: `docker compose exec backend ls /app/uploads` → 비어 있음 (audio-privacy)
+- [ ] **오디오 즉시 삭제 확인**: `docker compose exec backend-blue ls /app/uploads` → 비어 있음 (audio-privacy)
 
 ## 관측성 (DJS-9 로깅으로 추적)
 - [ ] 분석 중 백엔드 로그에 단계별 JSON이 동일 `correlationId`로 남는다:
-      `docker compose logs backend | grep '"stage"'`
+      `docker compose logs backend-blue | grep '"stage"'`
       → `analysis.start` → `transcribe.start/done` → `analyze.start/done` → `analysis.completed` → `audio.deleted`
 - [ ] 실패 시 `analysis.failed`(error/message 포함) 로그로 원인 추적 가능
 

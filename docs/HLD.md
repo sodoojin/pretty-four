@@ -74,7 +74,7 @@ flowchart TB
     ANALYSIS --> DISK
     ANALYSIS -- "오디오 업로드" --> OPENAI
     ANALYSIS -- "전사본 + 연령" --> CLAUDE
-    AUTH -- "구글 idToken 검증" --> OPENAI
+    AUTH -- "구글 idToken 검증" --> GAUTH["google-auth-library"]
 ```
 
 ### 3.1 구성요소 역할
@@ -88,7 +88,7 @@ flowchart TB
 | **ChildrenModule** | 아이 프로필 등록/조회/수정. 사용자당 "현재 아이" 1명 조회 지원. |
 | **SessionsModule** | 오디오 업로드 수신(Multer disk storage), 세션 레코드 생성, 분석 트리거(fire-and-forget), 세션/결과 조회. |
 | **AnalysisModule** | Whisper 전사 → Claude 분석 → DB 저장 → 오디오 삭제의 백그라운드 파이프라인. 연령 구간별 프롬프트 컨텍스트 적용. |
-| **MariaDB 11** | TypeORM(`synchronize: true`, `utf8mb4`)로 4개 엔티티 영속화. |
+| **MariaDB 11** | TypeORM(`synchronize: NODE_ENV!=='production'`일 때만 true; production에서는 false + `migrationsRun:true`, `utf8mb4`)로 4개 엔티티 영속화. 공유 인프라(sprout-infra) MariaDB 사용. |
 | **OpenAI Whisper / Anthropic Claude** | 외부 AI 서비스. 서버가 API 키를 보관하고 서버-사이드에서만 호출. |
 
 > 참고: 구글 로그인 검증은 `google-auth-library`의 `OAuth2Client.verifyIdToken`으로 수행되며, 카카오는 `https://kapi.kakao.com/v2/user/me` 호출로 검증한다.
@@ -262,37 +262,44 @@ sequenceDiagram
 
 ## 7. 배포 아키텍처
 
-로컬 개발/단일 호스트 기준 Docker Compose(`docker-compose.yml`, version 3.8) 구성:
+**인프라 분리 원칙:** DB(MariaDB)와 엣지 리버스 프록시(Caddy)는 공유 인프라 `../sprout-infra`가 소유한다.
+이 repo는 `backend-blue/green`만 띄우고 외부 네트워크 `sprout-shared`에 alias로 노출한다.
 
 ```mermaid
 flowchart LR
-    subgraph Host["Docker Host"]
-        subgraph backend_c["backend 컨테이너"]
-            NEST["NestJS (node dist/main)<br/>:3000"]
-            UP["/app/uploads"]
-        end
-        subgraph db_c["db 컨테이너 (mariadb:11)"]
-            MDB["MariaDB :3306"]
-            VOL1["/var/lib/mysql"]
-        end
-        AUDVOL[("audio_tmp 볼륨")]
-        DBVOL[("db_data 볼륨")]
+    subgraph SI["sprout-infra (../sprout-infra)"]
+        CADDY["엣지 Caddy (:80)<br/>호스트명 라우팅"]
+        MDB[("공유 MariaDB :3306<br/>DB: pretty_four")]
+        NET[["sprout-shared 네트워크"]]
     end
-    NEST -- "DB_HOST=db :3306" --> MDB
-    UP --- AUDVOL
-    VOL1 --- DBVOL
-    NEST -- "노출 3000:3000" --> Outside["호스트 / 클라이언트"]
-    MDB -- "노출 3306:3306" --> Outside
+
+    subgraph PF["pretty-four (이 repo)"]
+        BLUE["backend-blue<br/>NestJS :3000<br/>alias: pretty-four-backend-blue"]
+        GREEN["backend-green<br/>NestJS :3000<br/>alias: pretty-four-backend-green"]
+        AUDVOL[("audio_tmp 볼륨")]
+    end
+
+    CADDY -- "pretty-four.sprout-labs.kr<br/>round-robin /health" --> BLUE
+    CADDY -- "pretty-four.sprout-labs.kr<br/>round-robin /health" --> GREEN
+    BLUE -- "DB_HOST=db :3306" --> MDB
+    GREEN -- "DB_HOST=db :3306" --> MDB
+    BLUE --- AUDVOL
+    GREEN --- AUDVOL
+    NET -.-> BLUE
+    NET -.-> GREEN
 ```
 
-| 서비스 | 이미지/빌드 | 포트 | 볼륨 | 비고 |
+| 서비스 | 이미지/빌드 | 포트(호스트) | 볼륨 | 비고 |
 |--------|-------------|------|------|------|
-| **db** | `mariadb:11` | 3306:3306 | `db_data → /var/lib/mysql` | healthcheck(`healthcheck.sh`), `restart: unless-stopped` |
-| **backend** | `./backend/Dockerfile` 빌드 | 3000:3000 | `audio_tmp → /app/uploads` | `db` healthy 후 기동, `./backend/.env` 로드, `DB_HOST=db` 주입 |
+| **backend-blue** | `./backend/Dockerfile` 빌드 | 미노출(네트워크 alias) | `audio_tmp → /app/uploads` | `sprout-shared` external network, alias `pretty-four-backend-blue` |
+| **backend-green** | `pretty-four-backend:latest` 이미지 재사용 | 미노출(네트워크 alias) | `audio_tmp → /app/uploads` | `sprout-shared` external network, alias `pretty-four-backend-green` |
+| **db** (공유) | `mariadb:11` — sprout-infra 소유 | sprout-infra 관리 | sprout-infra 관리 | DB_NAME=pretty_four, DB_USER=pretty_four |
+| **엣지 Caddy** (공유) | sprout-infra 소유 | :80 (sprout-infra) | — | `caddy/sites/pretty-four.caddy` 라우팅 |
 
 - 환경변수: DB 접속 정보(`DB_*`), `JWT_SECRET`/`JWT_EXPIRES_IN`(기본 7d), `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `UPLOAD_DIR`(기본 `/app/uploads`)는 백엔드 `.env`에 보관.
-- TypeORM `synchronize: true` 로 엔티티 기반 스키마 자동 생성 (개발 편의 목적; 프로덕션에서는 마이그레이션 전환 권장).
+- TypeORM `synchronize`: `NODE_ENV !== 'production'`일 때만 `true`(개발). 운영(`NODE_ENV=production`)에서는 `false` + `migrationsRun:true`(부팅 시 마이그레이션 자동 적용).
 - 앱은 `flutter_dotenv`로 `API_BASE_URL`, `KAKAO_NATIVE_APP_KEY`를 로드한다.
+- 사전 조건: `(cd ../sprout-infra && docker compose up -d)` — DB·네트워크·엣지 Caddy는 sprout-infra 소유.
 
 ---
 

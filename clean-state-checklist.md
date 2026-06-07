@@ -6,7 +6,7 @@
 - [ ] `cd pretty_four && flutter analyze` → `No issues found!`
 - [ ] `cd pretty_four && flutter test` → `All tests passed!` (현재 13개)
 - [ ] `cd backend && npm run check` → exit 0 (typecheck + build)
-- [ ] (분석 변경 시) `docker compose up -d --build backend` → `Server running on port 3000`
+- [ ] (분석 변경 시) `(cd ../sprout-infra && docker compose up -d) && docker compose up -d --build backend-blue` → 컨테이너 내부 `Server running on port 3000`
 
 ## 위생
 - [ ] 비밀키 미커밋: `git diff --cached --name-only | grep -E '\.env$'` 결과 없음

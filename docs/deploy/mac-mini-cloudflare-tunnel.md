@@ -69,9 +69,9 @@ ln -sf backend/.env .env
 
 ```dotenv
 DB_NAME=pretty_four
-DB_USER=app
+DB_USER=pretty_four
 DB_PASSWORD=<강력한_DB_비밀번호>
-DB_ROOT_PASSWORD=<강력한_root_비밀번호>
+# DB_ROOT_PASSWORD는 backend가 사용하지 않음 — root 계정은 sprout-infra에서만 관리.
 
 # production → synchronize 꺼지고 마이그레이션 자동 적용(app.module migrationsRun).
 NODE_ENV=production
@@ -97,11 +97,14 @@ openssl rand -base64 48
 
 ## 3. DB 포트 노출 범위 (기본 안전)
 
-`docker-compose.yml`의 MariaDB는 `127.0.0.1:3306` (loopback)에만 바인딩됩니다. 호스트 외부 IP에는 노출되지 않으므로 **운영에서 별도 수정이 필요하지 않습니다.**
+> **주의:** MariaDB는 이 repo가 아닌 **공유 인프라(`../sprout-infra`)** 소유입니다.
+> DB 포트 바인딩 설정은 sprout-infra의 `docker-compose.yml`에서 관리합니다.
+
+sprout-infra의 MariaDB는 `127.0.0.1:3306`(loopback)에만 바인딩되어 호스트 외부 IP에는 노출되지 않습니다.
 
 - 맥미니 자체에서만 DB GUI 툴(TablePlus 등)로 `localhost:3306` 접근 가능
 - 외부망/LAN에서는 DB 포트로 직접 접근 불가
-- 백엔드는 공유 네트워크(`sprout-shared`의 `db:3306`)로 접근하므로 영향 없음
+- 백엔드(backend-blue/green)는 `sprout-shared` 네트워크의 `db:3306`으로 접근하므로 영향 없음
 - cloudflared는 **sprout-infra 엣지 Caddy(`localhost:80`)**만 외부에 공개
 
 ---
@@ -239,7 +242,8 @@ API_BASE_URL=https://pretty-four.sprout-labs.kr
 
 ## 8. 운영 점검 체크리스트
 
-- [ ] `docker compose ps` — db, backend-blue, backend-green, caddy 모두 **Up (healthy)**
+- [ ] `(cd ../sprout-infra && docker compose ps)` — db, caddy **Up (healthy)**
+- [ ] `docker compose ps` — backend-blue, backend-green **Up (healthy)**
 - [ ] `curl https://pretty-four.sprout-labs.kr/health` → `{"status":"ok"}` (HTTP 200)
 - [ ] `curl https://pretty-four.sprout-labs.kr/auth/login` → 400/401 (외부에서 접속됨)
 - [ ] DB 포트(3306)는 `127.0.0.1`에만 바인딩 — 호스트 외부 IP에는 노출 X (3단계)
@@ -252,15 +256,18 @@ API_BASE_URL=https://pretty-four.sprout-labs.kr
 
 ## 9. MariaDB 백업 (권장)
 
-데이터는 `db_data` 볼륨에 저장됩니다. 정기 백업:
+> **주의:** DB(MariaDB)는 이 repo가 아닌 **공유 인프라(`../sprout-infra`)** 소유입니다.
+> 백업은 sprout-infra 디렉터리에서 수행하세요.
 
 ```bash
-# 덤프 백업
+# sprout-infra에서 덤프 백업 (pretty_four DB만 추출)
+cd ~/sprout-infra
 docker compose exec db sh -c \
-  'exec mariadb-dump -uroot -p"$MYSQL_ROOT_PASSWORD" pretty_four' > backup_$(date +%Y%m%d).sql
+  'exec mariadb-dump -uroot -p"$MYSQL_ROOT_PASSWORD" pretty_four' > backup_pretty_four_$(date +%Y%m%d).sql
 ```
 
 `cron`이나 `launchd`로 매일 자동 백업 + 외부(클라우드 드라이브 등) 복사를 권장합니다.
+백업 자동화 설정도 sprout-infra에서 관리합니다.
 
 ---
 

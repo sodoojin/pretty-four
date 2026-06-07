@@ -18,7 +18,7 @@ pretty-four/                  ← 부모 git 저장소 (백엔드·문서·인�
 ├── README.md                 ← 빠른 시작
 ├── init.sh                   ← 재현 가능한 환경 설정 (한 번에 셋업)
 ├── feature_list.json         ← 기계가 읽는 기능 목록 + 검증 명령
-├── docker-compose.yml        ← backend + MariaDB
+├── docker-compose.yml        ← backend-blue/green (DB·Caddy는 ../sprout-infra 소유)
 ├── backend/                  ← NestJS 10 + TypeORM + MariaDB
 │   └── src/{auth,users,children,sessions,analysis}/
 ├── pretty_four/              ← Flutter 앱 (별도 중첩 git 저장소!)
@@ -54,8 +54,8 @@ pretty-four/                  ← 부모 git 저장소 (백엔드·문서·인�
 | 백엔드 타입체크 | `cd backend && npm run typecheck` | exit 0, 에러 없음 |
 | 백엔드 빌드 | `cd backend && npm run build` | exit 0 |
 | 백엔드 단위 테스트 | `cd backend && npm run test` | exit 0 (DB 불필요, mocked repo) |
-| 백엔드 E2E | `cd backend && npm run test:e2e` | exit 0 (MariaDB 필요: `docker compose up -d db`) |
-| 백엔드 기동 | `docker compose up -d --build backend` | `Server running on port 3000` |
+| 백엔드 E2E | `cd backend && npm run test:e2e` | exit 0 (MariaDB 필요: 사전에 `(cd ../sprout-infra && docker compose up -d)`) |
+| 백엔드 기동 | `(cd ../sprout-infra && docker compose up -d) && docker compose up -d --build backend-blue` | 컨테이너 내부 `Server running on port 3000` (호스트 미노출, 엣지 통해 접근) |
 
 > **3단계 종결 검증:** 정적(typecheck/build/analyze) → 런타임/행위(단위 테스트, flutter test) → E2E(`test:e2e` supertest로 실제 HTTP 201/200/401/409). AI 분석 파이프라인은 외부 키가 필요해 [docs/manual-ai-pipeline-check.md](./docs/manual-ai-pipeline-check.md)로 수동 검증한다.
 

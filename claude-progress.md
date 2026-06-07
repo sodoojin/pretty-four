@@ -2,6 +2,19 @@
 
 > 작업 단위로 추가. 최신 항목이 위. "완료"는 검증 명령 통과를 확인한 경우만.
 
+## 2026-06-07
+
+### 문서·CI 동기화 (인프라 전환 stale 정리)
+- **인프라 전환 반영:** 자체 db·Caddy 제거 → 공유 sprout-infra 사용(외부 네트워크 sprout-shared). 이 repo는 backend-blue/green만 유지.
+- AGENTS.md: 저장소 구조 설명(`docker-compose.yml ← backend-blue/green만`), DoD 백엔드 기동 명령(`backend-blue`, sprout-infra 사전 기동 명시), 백엔드 E2E MariaDB 사전 조건 갱신.
+- HLD.md §3.1: MariaDB synchronize 조건부(`NODE_ENV!==production`) 반영. §3 AUTH→OPENAI 화살표 오류 수정(google-auth-library로 정정). §7 배포 다이어그램을 blue/green+sprout-infra 공유 구조로 교체.
+- LLD.md §1·§2: synchronize 조건부 설명 갱신.
+- CI ci.yml: backend-smoke 잡을 compose 실행 불가(sprout-shared external 네트워크, 호스트 포트 미노출) 이유 주석과 함께 `docker build` 이미지 빌드 검증으로 교체.
+- docs/deploy/mac-mini-cloudflare-tunnel.md: 백업·DB 포트 섹션을 sprout-infra 소관으로 정정, DB_ROOT_PASSWORD 기입 안내 제거, 운영 점검 체크리스트 분리(sprout-infra/pretty-four).
+- feature_list.json: audio-privacy 검증 명령 `backend` → `backend-blue`, updated 날짜 갱신.
+- clean-state-checklist.md: 백엔드 기동 명령 `backend` → `backend-blue` + sprout-infra 사전 기동 명시.
+- session-handoff.md: 최종 갱신일·현황 갱신.
+
 ## 2026-05-31
 
 ### 하네스 개선 5종 (Linear DJS-5~9, A등급 목표)

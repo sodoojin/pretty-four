@@ -49,7 +49,7 @@
 
 ### 1. 모듈 구조
 
-`AppModule`은 전역 `ConfigModule`(isGlobal), `TypeOrmModule.forRootAsync`(MariaDB 연결, 4개 엔티티 등록, `synchronize: true`, `charset: 'utf8mb4'`)과 5개 기능 모듈을 import한다.
+`AppModule`은 전역 `ConfigModule`(isGlobal), `TypeOrmModule.forRootAsync`(MariaDB 연결, 4개 엔티티 등록, `synchronize: NODE_ENV!=='production'`(개발: true, 운영: false + `migrationsRun:true`), `charset: 'utf8mb4'`)과 5개 기능 모듈을 import한다.
 
 - `AuthModule` → `UsersModule`, `PassportModule`, `JwtModule.registerAsync`(secret=`JWT_SECRET`, expiresIn=`JWT_EXPIRES_IN`(기본 `7d`))
 - `UsersModule` → `User` 엔티티 forFeature, `UsersService` export
@@ -62,7 +62,7 @@
 graph TD
     App[AppModule]
     Config[ConfigModule.forRoot isGlobal]
-    TypeOrm[TypeOrmModule.forRootAsync<br/>MariaDB / synchronize:true]
+    TypeOrm[TypeOrmModule.forRootAsync<br/>MariaDB / synchronize:조건부]
     Auth[AuthModule]
     Users[UsersModule]
     Children[ChildrenModule]
@@ -90,7 +90,7 @@ graph TD
 
 ### 2. 데이터 모델 (DB 스키마)
 
-DB는 MariaDB(`type: 'mariadb'`, 드라이버 패키지 `mysql2`), `synchronize: true`로 엔티티 기반 자동 스키마 생성, `charset: utf8mb4`. PK는 모두 `uuid` 자동 생성. 컬럼명은 TypeORM camelCase 그대로 사용.
+DB는 MariaDB(`type: 'mariadb'`, 드라이버 패키지 `mysql2`), `synchronize: NODE_ENV!=='production'`(개발에서만 자동 스키마 동기화; 운영에서는 `false` + `migrationsRun:true`로 부팅 시 마이그레이션 자동 적용), `charset: utf8mb4`. PK는 모두 `uuid` 자동 생성. 컬럼명은 TypeORM camelCase 그대로 사용. DB 인스턴스 자체는 공유 인프라(`../sprout-infra`) 소유.
 
 #### users (`@Entity('users')`)
 
