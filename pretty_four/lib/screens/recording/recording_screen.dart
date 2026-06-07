@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -343,18 +342,16 @@ class _RecordingScreenState extends State<RecordingScreen>
                               color: Colors.white, size: 20),
                         ),
                       ),
-                      if (kDebugMode) ...[
-                        const SizedBox(height: 12),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32),
-                          child: GhostButton(
-                            label: '저장된 음성으로 분석',
-                            onPressed: _analyzeSample,
-                            icon: const Icon(Icons.science_outlined,
-                                color: AppColors.blue2, size: 18),
-                          ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: GhostButton(
+                          label: '저장된 음성으로 분석',
+                          onPressed: _analyzeSample,
+                          icon: const Icon(Icons.audio_file_outlined,
+                              color: AppColors.blue2, size: 18),
                         ),
-                      ],
+                      ),
                     ],
                   ],
                 ),
