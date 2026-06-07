@@ -1,47 +1,31 @@
+# 인프라 정책: 별도 MariaDB를 띄우지 않는다.
+# 공유 인프라(sprout-infra)의 MariaDB를 쓰고, 논리 database 'pretty_four' + 전용 유저로 격리한다.
+# blue/green 무중단 배포 + Caddy 리버스 프록시는 유지(이 repo 소유).
+# 사전: (cd ../sprout-infra && docker compose up -d)  — DB·네트워크·논리 DB는 sprout-infra가 소유.
 version: '3.8'
 
 services:
-  db:
-    image: mariadb:11
-    restart: unless-stopped
-    # SSL/TLS 활성화. 인증서는 scripts/gen-db-certs.sh 로 생성하여 db/certs 에 둠.
-    command:
-      - "--ssl-ca=/etc/mysql/certs/ca.crt"
-      - "--ssl-cert=/etc/mysql/certs/server.crt"
-      - "--ssl-key=/etc/mysql/certs/server.key"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
-      MYSQL_DATABASE: ${DB_NAME:-pretty_four}
-      MYSQL_USER: ${DB_USER:-app}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-apppass}
-    volumes:
-      - db_data:/var/lib/mysql
-      - ./db/certs:/etc/mysql/certs:ro
-    ports:
-      - "127.0.0.1:3306:3306"
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   backend-blue:
     image: pretty-four-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     env_file:
       - ./backend/.env
     environment:
+      # 공유 네트워크(sprout-shared)의 db 서비스로 접속. 전용 유저 + 논리 DB.
       DB_HOST: db
       DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-pretty_four}
+      DB_USER: ${DB_USER:-pretty_four}
+      DB_PASSWORD: ${DB_PASSWORD:-pretty_four_pw}
       INSTANCE_NAME: blue
     volumes:
       - audio_tmp:/app/uploads
+    networks:
+      - app
+      - sprout-shared
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
       interval: 10s
@@ -52,17 +36,20 @@ services:
   backend-green:
     image: pretty-four-backend:latest
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     env_file:
       - ./backend/.env
     environment:
       DB_HOST: db
       DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-pretty_four}
+      DB_USER: ${DB_USER:-pretty_four}
+      DB_PASSWORD: ${DB_PASSWORD:-pretty_four_pw}
       INSTANCE_NAME: green
     volumes:
       - audio_tmp:/app/uploads
+    networks:
+      - app
+      - sprout-shared
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
       interval: 10s
@@ -79,12 +66,21 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    networks:
+      - app
     depends_on:
       - backend-blue
       - backend-green
 
+networks:
+  # caddy ↔ backend 내부 통신
+  app:
+  # backend ↔ 공유 DB (sprout-infra 소유)
+  sprout-shared:
+    external: true
+    name: sprout-shared
+
 volumes:
-  db_data:
   audio_tmp:
   caddy_data:
   caddy_config:
