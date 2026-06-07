@@ -1,5 +1,4 @@
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 class RecordingService {
@@ -7,8 +6,9 @@ class RecordingService {
   DateTime? _startTime;
 
   Future<bool> requestPermission() async {
-    final status = await Permission.microphone.request();
-    return status.isGranted;
+    // record 패키지의 네이티브 마이크 권한 요청(AVAudioSession). iOS에서 시스템 프롬프트를 띄우고
+    // 설정에 마이크 토글을 생성한다. (permission_handler는 Podfile 매크로 필요 → 미설정 시 무조건 denied)
+    return await _recorder.hasPermission();
   }
 
   Future<String> start(String sessionId) async {
